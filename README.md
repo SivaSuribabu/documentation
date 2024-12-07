@@ -24,3 +24,9 @@
 -- [dbservers]
   -- 3.3.3.3
   -- 4.4.4.4
+
+# how to ping all servers at a time
+-- ansible all -m ping 
+-- ansbile -m ping webservers
+-- ansible -m ping dbservers
+
