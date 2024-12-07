@@ -30,3 +30,10 @@
 -- ansbile -m ping webservers
 -- ansible -m ping dbservers
 
+# how to copy a file into target servers
+-- ansible all -m copy -a "src=/home/ubuntu/test.txt dest=/home/ubuntu/test.txt" --become
+
+# how to remove a file from targer servers
+-- ansible all -m file -a "path=/home/ubuntu/test.txt state=absent" --become
+
+
