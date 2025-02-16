@@ -1,0 +1,48 @@
+import multiprocessing
+import time
+import psutil
+
+TARGET_CPU_UTILIZATION = 80  # Target CPU utilization percentage
+DURATION = 300  # Time in seconds (5 minutes)
+NUM_CORES = multiprocessing.cpu_count()
+
+
+def stress_cpu():
+    """Function to keep the CPU busy."""
+    while True:
+        _ = 2 * 2  # Simple computation
+
+
+def control_cpu_usage(target_utilization, duration):
+    """Dynamically adjusts CPU utilization to reach the target."""
+    processes = []
+    
+    try:
+        start_time = time.time()
+        while time.time() - start_time < duration:
+            current_utilization = psutil.cpu_percent(interval=1)
+
+            if current_utilization < target_utilization:
+                # Start a new worker process if CPU utilization is below the target
+                p = multiprocessing.Process(target=stress_cpu)
+                p.start()
+                processes.append(p)
+
+            elif current_utilization > target_utilization:
+                # Terminate a process if CPU utilization is too high
+                if processes:
+                    p = processes.pop()
+                    p.terminate()
+
+        print("Stress test completed. Normalizing CPU usage...")
+
+    finally:
+        # Ensure all processes are terminated
+        for p in processes:
+            p.terminate()
+        for p in processes:
+            p.join()
+        print("CPU utilization normalized.")
+
+if __name__ == "__main__":
+    control_cpu_usage(TARGET_CPU_UTILIZATION, DURATION)
