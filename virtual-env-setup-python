@@ -11,3 +11,9 @@ How to Setup Virtual Environment in Ubuntu  Machine
 
 # Activate Python Virtual Environment
 4. source myenv/bin/activate
+
+# Install Venv Dependencies
+5 pip install psutils
+
+# Venv De-Activation
+6. Deactivate
