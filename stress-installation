@@ -1,0 +1,5 @@
+# Update package manager and install stress
+sudo apt update && sudo apt install -y stress
+
+# Stress the cpu for 60s
+stress --cpu 4 --timeout 60s
