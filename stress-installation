@@ -2,4 +2,5 @@
 sudo apt update && sudo apt install -y stress
 
 # Stress the cpu for 60s
-stress --cpu 4 --timeout 60s
+stress --cpu $(nproc) --timeout 60s
+
