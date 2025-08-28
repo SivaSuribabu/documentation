@@ -1,0 +1,11 @@
+# How to see the eks nodes capacity 
+kubectl describe nodes | grep -A "Capacity"
+#or 
+kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.capacity.memory}{"\n"}{end}'
+
+#For CPU Usage 
+kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.capacity.cpu}{"\n"}{end}'
+
+#Check How Much Memory Each Pod Is Using
+kubectl top opds -A
+kubectl top nodes 
