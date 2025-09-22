@@ -1,0 +1,20 @@
+Docker Commands 
+
+docker ps -- to view the running processes
+docker ps -a -- to view the processes including stopped 
+docker login -- to log into the dockerhub
+docker exec -it podname /bin/bash  -- to log into the pod 
+docker network ls --to view the docker network
+docker images -- to see the images
+docker rmi myimage -- to remove the images
+docker delete podname  --to delete the container
+docker run  -- to run the container
+docker build -t myimage -- to build the image
+docker stop -- to stop the container
+docker logs containerid  -- to see the logs 
+
+
+docker-compose
+docker-compose up
+docker-compose down
+docker-compose logs
