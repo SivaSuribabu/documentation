@@ -1,0 +1,24 @@
+DEDICATED PORTS 
+
+System Ports :
+ssh  :22
+http  : 80
+https  : 443
+dns  : 53
+
+DevOps : 
+
+Jenkins  :8080
+sonarqube  : 9000
+nginx  : 80
+grafana  : 3000
+prometheus  : 9090
+alrt manager  : 9093
+
+DataBases: 
+
+mysql/mariadb  : 3306
+postgress  : 5432
+mongodb  : 27017
+Redis  : 2379
+
