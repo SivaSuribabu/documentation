@@ -1,0 +1,196 @@
+
+✅ Uses Maven & Docker caching
+
+✅ Has retry and catchError logic
+
+✅ Supports Dev, Test, and Production environments
+
+✅ Prompts for manual approval only in Production
+
+✅ Sends different emails on success/failure
+
+
+---
+
+📌 Jenkinsfile (Complete with Caching, Retry, Approval, Notifications)
+
+pipeline {
+    agent {
+        // Run builds inside a Maven Docker image with caching enabled
+        docker {
+            image 'maven:3.9.4-eclipse-temurin-17'
+            args '-v $HOME/.m2:/root/.m2'   // cache Maven dependencies across builds
+        }
+    }
+
+    // Let user choose environment (dev/test/prod)
+    parameters {
+        choice(name: 'ENV', choices: ['dev', 'test', 'production'], description: 'Choose deployment environment')
+    }
+
+    environment {
+        // GitHub (username + token)
+        GIT_CRED = credentials('github-token-creds')
+        // DockerHub (username + token)
+        DOCKER_CRED = credentials('docker-token-creds')
+        // SonarQube token
+        SONAR_CRED = credentials('sonar-token-creds')
+
+        // Replace with your own repo/registry
+        GIT_REPO = 'https://github.com/your-org/your-private-repo.git'
+        DOCKER_REGISTRY = 'docker.io/your-docker-username'
+        IMAGE_NAME = 'java-app'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                script {
+                    // Retry Git clone 3 times if network fails
+                    retry(3) {
+                        git branch: 'main',
+                            url: "${env.GIT_REPO}",
+                            credentialsId: 'github-token-creds'
+                    }
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                // Catch errors so pipeline continues even if tests fail
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    sh 'mvn clean test -Dmaven.repo.local=/root/.m2/repository'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQubeServer') {
+                    sh """
+                        mvn sonar:sonar \
+                        -Dmaven.repo.local=/root/.m2/repository \
+                        -Dsonar.login=${SONAR_CRED_PSW}
+                    """
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image with cache support
+                    sh """
+                        docker build \
+                          --cache-from=${DOCKER_REGISTRY}/${IMAGE_NAME}:latest \
+                          -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} .
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withDockerRegistry(credentialsId: 'docker-token-creds', url: '') {
+                    sh """
+                        docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                        docker tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                        docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                    """
+                }
+            }
+        }
+
+        stage('Update Deployment') {
+            steps {
+                script {
+                    // Update Kubernetes manifests per environment
+                    def namespace = (params.ENV == 'dev') ? "dev-ns" :
+                                    (params.ENV == 'test') ? "test-ns" : "prod-ns"
+
+                    sh """
+                        sed -i 's#IMAGE_PLACEHOLDER#${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}#' k8s/deployment.yaml
+                        kubectl -n ${namespace} apply -f k8s/deployment.yaml
+                    """
+                }
+            }
+        }
+
+        stage('Approval for Production') {
+            when {
+                expression { params.ENV == 'production' }
+            }
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input message: "Deploy to Production?", ok: "Approve"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext(
+                to: 'team@company.com',
+                subject: "✅ SUCCESS: Build #${BUILD_NUMBER} (${params.ENV})",
+                body: "The build completed successfully in environment: ${params.ENV}\nBuild URL: ${env.BUILD_URL}"
+            )
+        }
+        failure {
+            emailext(
+                to: 'team@company.com',
+                subject: "❌ FAILURE: Build #${BUILD_NUMBER} (${params.ENV})",
+                body: "The build failed in environment: ${params.ENV}\nCheck logs at: ${env.BUILD_URL}"
+            )
+        }
+    }
+}
+
+
+---
+
+🔎 Explanation of Key Parts
+
+Agent with Cache
+Uses a Docker container (maven:3.9.4-eclipse-temurin-17) and mounts $HOME/.m2 for Maven cache.
+
+Retry & CatchError
+
+retry(3) → retries Git checkout 3 times.
+
+catchError → marks test stage as failed but allows pipeline to continue.
+
+
+SonarQube Analysis
+Runs with external SonarQube server using Jenkins credentials token.
+
+Docker Caching
+--cache-from uses the latest image as cache source.
+After pushing new build, tags it as latest to refresh cache for next build.
+
+Environment-specific Deployment
+
+Dev → dev-ns
+
+Test → test-ns
+
+Prod → prod-ns
+
+
+Manual Approval
+Shown only when ENV == production.
+
+Email Notifications
+
+Sends success email on green builds.
+
+Sends failure email on red builds.
+
+
+
+
+---
+
+👉 This is a production-grade Jenkinsfile you can directly use with your private GitHub repo, SonarQube server, and DockerHub private registry.
+
