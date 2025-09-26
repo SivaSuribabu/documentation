@@ -1,0 +1,152 @@
+
+
+✅ Steps to Access EKS Cluster Using RBAC
+
+
+---
+
+1. Understand the Flow
+
+AWS IAM users/roles authenticate to the EKS cluster.
+
+The aws-auth ConfigMap in the kube-system namespace maps IAM identities → Kubernetes users/groups.
+
+Kubernetes RBAC roles/clusterroles + rolebindings/clusterrolebindings define what actions those users/groups can perform.
+
+
+
+---
+
+2. Update aws-auth ConfigMap
+
+First, map an IAM user/role to a Kubernetes group.
+
+kubectl edit configmap aws-auth -n kube-system
+
+Example entry:
+
+mapUsers: |
+  - userarn: arn:aws:iam::123456789012:user/devops-engineer
+    username: devops-engineer
+    groups:
+      - dev-team
+
+This means IAM user devops-engineer will be seen as devops-engineer in Kubernetes and added to group dev-team.
+
+
+---
+
+3. Create an RBAC Role/ClusterRole
+
+Define permissions.
+
+Role (namespace-scoped):
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: dev
+  name: dev-readonly
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch"]
+
+ClusterRole (cluster-wide):
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: admin-clusterrole
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+
+
+---
+
+4. Bind Role to Group
+
+Map the Kubernetes group from aws-auth → the role.
+
+RoleBinding:
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-binding
+  namespace: dev
+subjects:
+- kind: Group
+  name: dev-team   # from aws-auth
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: dev-readonly
+  apiGroup: rbac.authorization.k8s.io
+
+ClusterRoleBinding:
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-binding
+subjects:
+- kind: Group
+  name: dev-team
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+
+
+---
+
+5. Access the Cluster
+
+Once the mapping is done:
+
+aws eks update-kubeconfig --region us-east-1 --name my-cluster
+kubectl get pods --namespace dev
+
+If your IAM user/role is in the aws-auth ConfigMap → Kubernetes RBAC decides what you can/can’t do.
+
+If permissions are missing, you’ll see errors like:
+
+Error from server (Forbidden): pods is forbidden: User "devops-engineer" cannot list resource "pods"
+
+
+
+---
+
+6. Advanced Notes
+
+IAM → RBAC mapping happens only via aws-auth ConfigMap.
+
+Service Accounts can also be linked to IAM roles using IRSA (IAM Roles for Service Accounts).
+
+You can audit RBAC with:
+
+kubectl auth can-i list pods --as=devops-engineer --namespace=dev
+
+
+
+---
+
+✅ Summary:
+
+1. Add IAM identity in aws-auth.
+
+
+2. Create Role/ClusterRole with needed permissions.
+
+
+3. Bind Role to group from aws-auth.
+
+
+4. Access cluster with IAM credentials.
+
+
+---
