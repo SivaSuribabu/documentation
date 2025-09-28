@@ -3,8 +3,10 @@ How to Setup Virtual Environment in Ubuntu  Machine
 # Make sure Python is installed on your machine 
 python3 --version
 
+sudo at pinstall python3-pip -y
+
 # Install python3 Virtual Environment
-sudo apt install python3-venv -y
+sudo apt install python3-venv -y or pip3 install virtualenv
 
 # Install Venv Dependencies
 pip install psutils
