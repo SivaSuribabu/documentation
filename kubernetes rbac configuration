@@ -1,0 +1,187 @@
+
+---
+
+📄 Single YAML Manifest (Roles + RoleBindings + ClusterRoles + ClusterRoleBindings)
+
+# ========================
+# Role for dev namespace
+# ========================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dev-app-role
+  namespace: dev
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+---
+# RoleBinding for dev namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-app-rolebinding
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: dev-sa
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-app-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ========================
+# ClusterRole (read-only across namespaces)
+# ========================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: view-app-resources
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding across dev, test, prod
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: view-app-rolebinding
+subjects:
+- kind: ServiceAccount
+  name: dev-sa
+  namespace: dev
+- kind: ServiceAccount
+  name: test-sa
+  namespace: test
+- kind: ServiceAccount
+  name: prod-sa
+  namespace: prod
+roleRef:
+  kind: ClusterRole
+  name: view-app-resources
+  apiGroup: rbac.authorization.k8s.io
+
+
+---
+
+⚡ Kubectl Commands You Need
+
+1️⃣ How to see the present Roles and ClusterRoles
+
+# List roles in a specific namespace
+kubectl get roles -n dev
+
+# List role bindings in a namespace
+kubectl get rolebindings -n dev
+
+# List cluster roles (cluster-wide)
+kubectl get clusterroles
+
+# List cluster role bindings
+kubectl get clusterrolebindings
+
+
+---
+
+2️⃣ How to apply new Roles and ClusterRoles
+
+# Apply the single YAML file you created
+kubectl apply -f rbac.yaml
+
+
+---
+
+3️⃣ How to delete the Role and ClusterRole
+
+# Delete a role in a namespace
+kubectl delete role dev-app-role -n dev
+
+# Delete a rolebinding in a namespace
+kubectl delete rolebinding dev-app-rolebinding -n dev
+
+# Delete a cluster role
+kubectl delete clusterrole view-app-resources
+
+# Delete a cluster rolebinding
+kubectl delete clusterrolebinding view-app-rolebinding
+
+
+---
+
+4️⃣ How to log into the cluster using Role username
+
+👉 Kubernetes doesn’t directly allow login as “Role username” — you use ServiceAccounts + kubeconfig.
+Steps:
+
+# Create a service account (already referenced in RoleBinding)
+kubectl create sa dev-sa -n dev
+
+# Get the service account token (for Kubernetes v1.24+, use secret-less method)
+kubectl create token dev-sa -n dev > dev-sa-token.txt
+
+# Generate a kubeconfig for the service account
+kubectl config set-credentials dev-sa --token=$(cat dev-sa-token.txt)
+kubectl config set-context dev-sa-context --cluster=$(kubectl config view --minify -o jsonpath='{.clusters[0].name}') --namespace=dev --user=dev-sa
+
+# Switch context to use the service account
+kubectl config use-context dev-sa-context
+
+Now you’re “logged in” as the service account bound to the Role.
+
+
+---
+
+5️⃣ How to retrieve Administrator users in the cluster
+
+# Check clusterrolebindings to see who is bound to cluster-admin
+kubectl get clusterrolebindings cluster-admin -o yaml
+
+👉 This will show you which users, groups, or service accounts are admins.
+
+
+---
+
+6️⃣ How to see existing permissions of a Role in the cluster
+
+# Describe a specific role
+kubectl describe role dev-app-role -n dev
+
+# Describe a cluster role
+kubectl describe clusterrole view-app-resources
+
+You can also simulate what a user/serviceaccount can do:
+
+# Example: Check if dev-sa can list pods in dev namespace
+kubectl auth can-i list pods --as=system:serviceaccount:dev:dev-sa -n dev
+
+
+---
+
+✅ With this single YAML + commands you can:
+
+Create Roles & ClusterRoles
+
+Bind them to service accounts
+
+Verify & delete them
+
+Log in as a service account
+
+Check permissions
+
+
+---
