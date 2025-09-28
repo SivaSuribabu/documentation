@@ -1,0 +1,190 @@
+
+
+1. aws-auth ConfigMap (IAM → Kubernetes mapping)
+
+
+2. ClusterRole (what they can do)
+
+
+3. ClusterRoleBinding (attach permissions to IAM user/role)
+
+
+4. Commands to apply, verify, and test access
+
+
+5. Commands to view logs/debug issues
+
+
+
+---
+
+🔹 Step 1: Update aws-auth ConfigMap
+
+Create a file aws-auth.yaml:
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+    - rolearn: arn:aws:iam::123456789012:role/EKS-DevOpsRole
+      username: devops-role
+      groups:
+        - dev-group
+  mapUsers: |
+    - userarn: arn:aws:iam::123456789012:user/siva
+      username: siva
+      groups:
+        - dev-group
+
+Explanation:
+
+rolearn: IAM Role ARN (replace with your actual IAM Role ARN).
+
+userarn: IAM User ARN (replace with your IAM User).
+
+username: The identity inside Kubernetes.
+
+groups: The RBAC groups (we’ll bind this group to a ClusterRole).
+
+
+
+---
+
+🔹 Step 2: Create ClusterRole
+
+File: clusterrole-dev-viewer.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dev-viewer
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+
+👉 This allows view-only access to Pods, Services, Deployments, and Ingress.
+
+
+---
+
+🔹 Step 3: Create ClusterRoleBinding
+
+File: clusterrolebinding-dev-viewer.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dev-viewer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dev-viewer
+subjects:
+- kind: Group
+  name: dev-group
+  apiGroup: rbac.authorization.k8s.io
+
+👉 This binds dev-group (from aws-auth) to the dev-viewer ClusterRole.
+👉 Any IAM User/Role mapped to dev-group now has these permissions.
+
+
+---
+
+🔹 Step 4: Apply all configs
+
+# Apply aws-auth ConfigMap
+kubectl apply -f aws-auth.yaml
+
+# Apply ClusterRole
+kubectl apply -f clusterrole-dev-viewer.yaml
+
+# Apply ClusterRoleBinding
+kubectl apply -f clusterrolebinding-dev-viewer.yaml
+
+
+---
+
+🔹 Step 5: Verify IAM ↔ RBAC Mapping
+
+1. View current aws-auth ConfigMap
+
+kubectl get configmap aws-auth -n kube-system -o yaml
+
+2. Verify ClusterRole & Binding
+
+kubectl get clusterrole dev-viewer -o yaml
+kubectl get clusterrolebinding dev-viewer-binding -o yaml
+
+3. Switch to IAM User siva
+
+First configure AWS CLI with siva’s credentials:
+
+aws configure --profile siva
+
+Then update kubeconfig to use this user:
+
+aws eks update-kubeconfig --name my-eks-cluster --region us-east-1 --profile siva
+
+Now test:
+
+kubectl get pods --all-namespaces
+kubectl get deployments
+kubectl get ingress
+kubectl create deployment test-nginx --image=nginx   # should FAIL
+
+👉 If RBAC is correct, get/list/watch will succeed but create will be denied.
+
+
+---
+
+🔹 Step 6: View Logs for Debugging
+
+1. Check API server logs for RBAC denials
+
+Unfortunately, EKS control plane logs are not directly accessible, but you can enable CloudWatch control plane logging:
+
+aws eks update-cluster-config \
+  --region us-east-1 \
+  --name my-eks-cluster \
+  --logging '{"clusterLogging":[{"types":["api","audit","authenticator"],"enabled":true}]}'
+
+Then view logs in CloudWatch → aws/eks/<cluster-name>/cluster.
+
+2. Check RBAC permissions for a user
+
+kubectl auth can-i get pods --as siva --all-namespaces
+kubectl auth can-i create deployments --as siva
+
+3. View all ClusterRoles and Bindings
+
+kubectl get clusterroles
+kubectl get clusterrolebindings
+
+
+---
+
+✅ Final Flow
+
+1. IAM User siva logs in → authenticated via IAM.
+
+
+2. aws-auth ConfigMap maps siva → dev-group.
+
+
+3. dev-group is bound to dev-viewer ClusterRole.
+
+
+4. RBAC enforces read-only access to workloads.
+
+
+---
