@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: production
+  labels:
+    kubernetes.io/app: my-app
+    app.kubernetes.io/version: v1.0.0
+    app.kubernetes.io/environment: production
+    app.kubernetes.io/team: backend
+  
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      kubernetes.io/app: my-app
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+  template:
+    metadata:
+      labels:
+        kubernetes.io/app: my-app
+        app.kubernetes.io/version: v1.0.0
+        app.kubernetes.io/environment: production
+        app.kubernetes.io/team: backend
+
+    spec:
+      containers:
+      - name: my-app-container
+        image: my-app-image:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      nodeSelector:
+        environment: production
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "production"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: kubernetes.io/app
+                operator: In
+                values:
+                - my-app
+            topologyKey: "kubernetes.io/hostname"
