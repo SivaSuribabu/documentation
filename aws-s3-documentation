@@ -1,0 +1,60 @@
+1.how to give a read only access to entire bucket  to other aws account.
+
+#we can use S3BucketPolicy
+
+# open amazon s3 console
+# choose the bucket --> permission tab --> bucket policy.
+
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowReadOnlyAccessToSpecificAccounts",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<Account-B-ID>:root",
+          "arn:aws:iam::<Account-C-ID>:root"
+        ]
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-bucket-name",
+        "arn:aws:s3:::your-bucket-name/*"
+      ]
+    }
+  ]
+}
+
+
+2. how to give read only access to a specific file in s3 buckets to the other aws account.
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowReadAccessToSpecificObject",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<Account-B-ID>:root",
+          "arn:aws:iam::<Account-C-ID>:root"
+        ]
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::your-bucket-name/path/to/your-file.txt"
+    }
+  ]
+}
+
+
+3. providing the temporary access like for an hour, then we can use the resigned url.
+
+
+aws s3 presign s3://your-bucket-name/path/to/file.txt --expires-in 3600 
+
+
