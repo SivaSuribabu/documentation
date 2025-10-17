@@ -1,3 +1,5 @@
+
+
 Step 1: Install AWS CLI
 aws --version
 
@@ -25,3 +27,9 @@ AWS Access Key ID
 AWS Secret Access Key
 Region (e.g., us-east-1)
 Output format (optional, e.g., json)
+
+
+Use Named Profiles in Terminal
+Option 1: Use --profile flag per command
+aws s3 ls --profile account1
+aws ec2 describe-instances --profile account2
