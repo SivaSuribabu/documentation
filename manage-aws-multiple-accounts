@@ -1,0 +1,27 @@
+Step 1: Install AWS CLI
+aws --version
+
+
+Step 2: Configure Each Account with a Named Profile
+Run aws configure --profile <profile-name> for each account.
+
+Account 1
+aws configure --profile account1
+AWS Access Key ID
+AWS Secret Access Key
+Region (e.g., us-east-1)
+Output format (optional, e.g., json)
+
+Account 2
+aws configure --profile account2
+AWS Access Key ID
+AWS Secret Access Key
+Region (e.g., us-east-1)
+Output format (optional, e.g., json)
+
+Account 3
+aws configure --profile account3
+AWS Access Key ID
+AWS Secret Access Key
+Region (e.g., us-east-1)
+Output format (optional, e.g., json)
