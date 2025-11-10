@@ -63,7 +63,7 @@ spec:
         environment: production
       tolerations:
       - key: "dedicated"
-        operator: "Equal"
+        operator: "Equal" qwer
         value: "production"
         effect: "NoSchedule"
       affinity:
