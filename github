@@ -5,3 +5,4 @@
 | 3    | `git add .`            | Stage any fixed or new files                  |
 | 4    | `git commit`           | Record a merge commit (if conflicts occurred) |
 | 5    | `git push origin main` | Upload your merged branch back to GitHub      |
+| 6    | git pull --rebase origin main | git pull = git fetch + git merge , Rebase means:"Take my local commits that are not in the remote branch | 
