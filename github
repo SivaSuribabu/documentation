@@ -1,0 +1,7 @@
+| Step | Command                | Action                                        |
+| ---- | ---------------------- | --------------------------------------------- |
+| 1    | `git fetch origin`     | Download remote updates without merging       |
+| 2    | `git pull origin main` | Merge remote changes into your local main     |
+| 3    | `git add .`            | Stage any fixed or new files                  |
+| 4    | `git commit`           | Record a merge commit (if conflicts occurred) |
+| 5    | `git push origin main` | Upload your merged branch back to GitHub      |
