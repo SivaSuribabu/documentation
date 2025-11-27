@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+
+########################
+# 1) Build stage
+########################
+FROM maven:3.9-eclipse-temurin-21 AS build
+
+# Set working directory
+WORKDIR /app
+
+# Copy only pom.xml first (to leverage Docker cache for dependencies)
+COPY pom.xml .
+
+# Download dependencies (helps with caching)
+RUN mvn -B dependency:go-offline
+
+# Now copy the source code
+COPY src ./src
+
+# Package the application (skip tests for faster build)
+RUN mvn -B clean package -DskipTests
+
+
+########################
+# 2) Runtime stage
+########################
+FROM eclipse-temurin:21-jre-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -S app && adduser -S app -G app
+
+# Copy the fat JAR from the build stage
+# Adjust the jar name pattern if needed
+COPY --from=build /app/target/*.jar app.jar
+
+# Expose the port your app runs on (Spring Boot default is 8080)
+EXPOSE 8080
+
+# Run as non-root user
+USER app
+
+# Start the app
+ENTRYPOINT ["java", "-jar", "app.jar"]
