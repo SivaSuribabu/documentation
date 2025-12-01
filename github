@@ -1,8 +1,7 @@
-| Step | Command                | Action                                        |
-| ---- | ---------------------- | --------------------------------------------- |
-| 1    | `git fetch origin`     | Download remote updates without merging       |
-| 2    | `git pull origin main` | Merge remote changes into your local main     |
-| 3    | `git add .`            | Stage any fixed or new files                  |
-| 4    | `git commit`           | Record a merge commit (if conflicts occurred) |
-| 5    | `git push origin main` | Upload your merged branch back to GitHub      |
-| 6    | git pull --rebase origin main | git pull = git fetch + git merge , Rebase means:"Take my local commits that are not in the remote branch | 
+1. Pull the latest changes with rebase: git pull --rebase origin main
+2. Add your changes: git add .
+3. Commit your changes: git commit -m "Your descriptive message"
+4. Push your changes: git push origin main
+5. Revert the last commit if needed: git reset --hard HEAD~1
+6. Force-push after resetting: git push origin main --force
+7. Cherry-pick a specific commit: git cherry-pick <commit-hash> ("Note: This applies a single commit from elsewhere onto your current branch, useful for bringing in individual changes without merging the whole branch.")
