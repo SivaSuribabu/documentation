@@ -1,0 +1,6 @@
+1. Install Argo CD
+* kubectl create namespace argocd
+* kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+2. Expose Argo CD Server Service in NodePort Mode
+* kubectl edit svc argocd-server -n argocd
