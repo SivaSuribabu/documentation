@@ -1,0 +1,27 @@
+#################################################
+1. Go the OPERATORHUB.IO 
+2. Click on Operetor Documentation
+3. Go to Usage --> Basics --> copy the code --> create a file argocd-controller.yml
+4.kubectl apply -f argocd-controller.yml
+5. kubectl get pods (argocd-application, argocd-redis, argocd-repo-server, argocd-server)
+6. kubectl get svc (look for example-argocd-server)
+7. kbectl edit svc example-argocd-server --> change the type to NodePort
+8. Kubectl get svc 
+9. minikube service argocd-server
+10. minikube service list --> take url and put it in a browser
+#######################################################
+
+
+################################################
+How to login to the argocd UI
+
+1. minikube service 
+2. Go to browser adn paste it
+3. username is ADMIN
+4. Password 
+  * kubectl get secret (example-argocd-cluster)
+  * kubectl edit secret example-argocd-cluster (copy admin-password)
+  *  echo "paste the code" | base64 -d
+  * copy the code and user as a password
+
+##################################################
