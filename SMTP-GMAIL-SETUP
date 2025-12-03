@@ -1,0 +1,25 @@
+1. create app password from google 
+2. ad credential into jenkins
+  * username and password
+  * username : sivasuribabupenkey@gmail.com
+  * password : paste the app password
+  * id : gmail-smtp
+  * description: gmail-smtp
+3. Go to the jenkins-->system-->extended amil function
+  *smtp server : smtp.gmail.com
+  *smtp port : 586
+  * default email suffix : @gmail
+  * advanced--> check the USE TLS
+4.Go to the terminal and run : openssl s_client -starttls smtp -crlf -connect smtp.gmail.com:587 -brief
+  ##############################
+output :
+CONNECTION ESTABLISHED                                         
+Protocol version: TLSv1.3
+Ciphersuite: TLS_AES_256_GCM_SHA384
+Peer certificate: CN = smtp.gmail.com
+Hash used: SHA256
+Signature type: ECDSA
+Verification: OK
+Server Temp Key: X25519, 253 bits
+250 SMTPUTF8
+#############################
