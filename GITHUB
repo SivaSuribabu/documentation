@@ -5,3 +5,15 @@
 5. Revert the last commit if needed: git reset --hard HEAD~1
 6. Force-push after resetting: git push origin main --force
 7. Cherry-pick a specific commit: git cherry-pick <commit-hash> ("Note: This applies a single commit from elsewhere onto your current branch, useful for bringing in individual changes without merging the whole branch.")
+
+
+##############################################
+1.git clone 
+2.git remote -v
+3.git branch
+4.git add . 
+5.git commit
+6.git push 
+7.git diff
+8.git rebase
+
