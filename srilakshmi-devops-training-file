@@ -1,3 +1,20 @@
 Hi Sri lakhmi, welcome to Devops
 Today topic is Git -- version control system.
+1. git clone 
+2. git status
+3. git add .
+4. git commit -m "file updated"
+5. git push origin main
+
+Additional Commands : 
+
+1. git diff  --> to see the changes of a file
+2. git remote -v -->to see the current repo
+3. git remote add origin https://github.com/SivaSuribabu/DOCUMENTATION-REPO.git
+4. git pull origin main
+5. git pull --rebase origin main  --> to pull the new chages that are made by other developers.
+6. git branch
+7. git branch -M main or master
+8. git checkout -b feature-branch
+9. git log
 
