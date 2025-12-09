@@ -1,0 +1,18 @@
+######################################################################################
+1. AWS EKS UPDATE-KUBECONFIG --NAME PRODUCTION-CLUSTER --REGION US-EAST-1
+2. KUBECTL CONFIG VIEW
+3. KUBECTL CONFIG CURRENT-CONTEXT
+4. KUBECTL CONFIG USE-CONTEXT DEVELOPMENT-CLUSTER
+5. VIM ~/.AWS/CREDENTIALS
+6. KUBECTL GET NODES
+#######################################################################################
+
+##########################################
+1. SERVICE ACCOUNTS IN K8S :
+2. DEPLOYMENTS IN K8S :
+3. SERVICES
+4. LOAD BALANCER MODE
+5. LB INGRESS AND INGRESS CONTROLLER
+##########################################
+
+###########################################
