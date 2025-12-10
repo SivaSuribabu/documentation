@@ -1,0 +1,14 @@
+*******************************************************************
+1. ALB CONTROLLER IS A POD WITH IN THE EKS CLUSTER
+2. IT IS  GOING TO CREATE ELASTIC LOAD BALANCER
+3. "QUESTION" : HOW A POD INSIDE THE EKS CLUSTER CAN CREATE A LOAD BALANCER.
+    "ANSWER"  : USING SERVICE ACCOUNT( CREATE IAM ROLE --> ASSAIGN POLIC TO IAM ROLE )
+
+
+
+1. export cluster_name=demo-cluster
+2. oidc_id=$(aws eks describe-cluster --name $cluster_name --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5) 
+3. ECHO $OIDC_ID
+4. eksctl utils associate-iam-oidc-provider --cluster $cluster_name --approve
+5. curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.11.0/docs/install/iam_policy.json ( DOWNLOADING THE IAM POLICY)
+6. 
