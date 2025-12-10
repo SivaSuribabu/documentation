@@ -1,3 +1,20 @@
+#####################################################################
+REAL QUICK CHECKS BEFORE DEPLOYING THE PROJECT ON TO THE KUBERNETES CLUSTER
+1. KUBECTL CONFIG CURRENT-CONTEXT
+2. KUBECTL GET ALL (MAKE SURE THERE IS NO DEPLOMENTS & SERVICES ARE RUNNING)
+3. KUBECTL GET ALL -N NAMESPAE-PRODUCTION
+4. CREATE SERVICE ACCOUNT (KUBECTL APPLY -F SERVICE-ACOUNT.YAML)
+5. KUBECTL GET SA
+6 HOW TO SEE HOW MANY NUMBER OF LINES OF CODE AVAILABLE IN A YAML FILE (: SET NUMBER)
+7. KUBECTL APPLY -F COMPLETE-DEPLOY.YAML
+8. KUBECTL GET PODS
+9. KUBECTL GET SVC
+10.
+11.
+12.
+
+
+
 ######################################################################################
 1. AWS EKS UPDATE-KUBECONFIG --NAME PRODUCTION-CLUSTER --REGION US-EAST-1
 2. KUBECTL CONFIG VIEW
@@ -5,7 +22,13 @@
 4. KUBECTL CONFIG USE-CONTEXT DEVELOPMENT-CLUSTER
 5. VIM ~/.AWS/CREDENTIALS
 6. KUBECTL GET NODES
+7. KUBECTL GET SA
+8. KUBECTL GET SA -N KUBE-SYSTEM
 #######################################################################################
+
+########################################
+Pods can be Deployments and Stateful sets and Deamonsets
+###########################################
 
 ##########################################
 1. SERVICE ACCOUNTS IN K8S :
@@ -16,3 +39,6 @@
 ##########################################
 
 ###########################################
+SERVICE ACCOUNT : IF A POD WANTS TO DO SOMETHING ON K8S.
+USER ACOUNT : IF A USER WANTES TO ACCESS THE CLUSTER HE NEED USER ACCOUNT.
+##############################################
