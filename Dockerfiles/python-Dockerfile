@@ -1,0 +1,25 @@
+FROM python:3.12-alpine AS builder
+
+WORKDIR / app
+
+COPY requirements.txt .
+
+RUN pip install --user -r requirements.txt
+
+COPY . .
+
+FROM python:3.12-alpine AS release
+
+WORKDIR / app
+
+COPY --from=builder /root/.local /root/.local
+COPY --from=builder /app .
+
+USER python
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD [ "executable" ]
+
+
+ENV PATH=/root/.local/bin:$PATH
+EXPOSE 8000
+ENTRYPOINT [ "python", "app.py" ]
+

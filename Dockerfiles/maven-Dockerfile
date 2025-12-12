@@ -1,0 +1,17 @@
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+
+WORKDIR /app
+
+COPY pom.xml .
+RUN mvn -B dependency:go-offline
+
+COPY src ./src
+RUN mvn clean package -DskipTests
+RUN mv target/*.jar app.jar
+
+FROM eclipse-temurin:22-jre 
+
+WORKDIR /app
+COPY --from=build /app/app.jar .
+ENTRYPOINT ["java", "-jar", "app.jar"]
+EXPOSE 8080
