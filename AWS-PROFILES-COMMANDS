@@ -1,0 +1,14 @@
+List all configured AWS profiles
+aws configure list-profiles
+
+See the region configured for each profile
+aws configure get region --profile account1
+
+If you want to see all details of a profile (region, credentials file, config sources)
+aws configure list --profile account1
+
+Export AWS_PROFILE before running Terraform
+    export AWS_PROFILE=account1
+    terraform init
+    terraform plan
+    terraform apply
