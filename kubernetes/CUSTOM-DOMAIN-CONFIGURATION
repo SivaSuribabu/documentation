@@ -38,4 +38,23 @@
         kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
 
 
+7. Error type-2     AmazonEKSLoadBalancerControllerRole does not have permission to read ALB listener attributes. Because of this, the controller cannot reconcile listener rules, and reconciliation fails.
+      {
+  "Effect": "Allow",
+  "Action": [
+      "elasticloadbalancing:DescribeListenerAttributes",
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeListenerAttributes",
+      "elasticloadbalancing:DescribeRules",
+      "elasticloadbalancing:CreateRule",
+      "elasticloadbalancing:DeleteRule",
+      "elasticloadbalancing:ModifyListener",
+      "elasticloadbalancing:ModifyRule"
+  ],
+  "Resource": "*"
+}
+
+
+--> kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
 
