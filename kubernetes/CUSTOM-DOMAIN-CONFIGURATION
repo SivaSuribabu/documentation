@@ -29,3 +29,13 @@
             "ec2:DescribeInstances",
             "ec2:DescribeNetworkInterfaces"
           ],
+
+  --> kubectl -n kube-system describe deployment aws-load-balancer-controller
+  --> kubectl -n kube-system get sa aws-load-balancer-controller -o yaml (output : annotations:
+                                                                                    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/AmazonEKSLoadBalancerControllerRole)
+
+  --> Restart Controller After Fix (Required)
+        kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
+
+
+
