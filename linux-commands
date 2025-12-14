@@ -1,0 +1,155 @@
+1.BASIC LINUX COMMANDS
+
+pwd
+Print Working Directory
+
+ls
+List Directory Contents
+Examples
+ls
+ls -l
+ls -lah /var/log
+
+cd
+Change Directory
+
+clear
+Clear Terminal Screen
+
+history
+Command History
+
+which
+Locate Executable Path
+which kubectl
+
+whoami
+Current Logged-in User
+
+2. FILE & DIRECTORY MANAGEMENT COMMANDS
+
+touch
+Create Empty File
+touch file.txt
+
+mkdir
+Create Directory
+mkdir mydir
+mkdir -p parent/child
+
+cp
+Copy Files / Directories
+cp source destination
+
+mv
+Move or Rename
+mv oldname newname
+mv file.txt /tmp/
+
+rm
+Remove Files / Directories
+rm file.txt
+rm -rf directory
+
+cat
+View File Content
+cat file.txt
+
+head
+First Lines of File
+head -n 10 file.txt
+
+tail
+Last Lines of File
+tail -n 20 file.log
+
+find
+Search Files
+find /var/log -name "*.log"
+
+grep
+Search Text Patterns
+grep "ERROR" app.log
+
+chmod
+Change Permissions
+chmod 755 script.sh
+chmod +x script.sh
+
+df
+Disk Usage (Filesystem)
+df -h
+
+du
+Directory Size
+du -sh /var/log
+
+
+3. USER & GROUP MANAGEMENT COMMANDS
+
+useradd
+Create User
+useradd username
+useradd -m username
+-m creates home directory.
+
+passwd
+Set User Password
+passwd username
+
+usermod
+Modify User
+usermod -aG sudo username
+Adds user to sudo group.
+
+userdel
+Delete User
+userdel username
+userdel -r username
+-r removes home directory.
+
+id
+User ID and Group Info
+id username
+
+su
+Switch User
+su - username
+
+sudo
+Run Command as Root
+sudo apt update
+
+Important Files
+File	Purpose
+/etc/passwd	User details
+/etc/shadow	Encrypted passwords
+/etc/group	Group information
+
+4. PROCESS & SYSTEM COMMANDS
+
+ps
+Running Processes
+ps -ef
+
+top
+Real-time Process Monitor
+
+htop
+Enhanced Process Monitor
+
+kill
+Terminate Process
+kill PID
+kill -9 PID
+
+uptime
+System Run Time
+
+free
+Memory Usage
+free -h
+
+uname
+System Information
+uname -a
