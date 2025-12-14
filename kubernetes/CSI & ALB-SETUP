@@ -93,3 +93,7 @@
 4. nslookup " paste the ingressaddress" --> copy the ip address
 5. sudo vim etc/hosts  --> update the "paste the IP address & domain name 10.0.0.0 example.com"
 
+
+*************************Troubleshooting**************************************
+1. kubectl rollout restart deployment ebs-csi-controller -n kube-system
+
