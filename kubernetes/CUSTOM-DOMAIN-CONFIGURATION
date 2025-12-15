@@ -17,6 +17,9 @@
 
 5 OPEN YOUR TERMINAL --> CURL --RESOLVE SIVASURIBABU.COM:PASTE THE IP FROM WATCHMYDNS" SIVASURIBABU.COM
 
+
+*******************************TROUBLE SHOOTING*************************************************
+
 6. kubectl describe ingress frontend-proxy (if load balancer listeners are not updated ,need to use the command and check logs)
     --> if ther there is an error like (api error AccessDenied: User: arn:aws:sts::644209053375:assumed-role/AmazonEKSLoadBalancerControllerRole/1765645658159160909 is not authorized to perform: ec2:GetSecurityGroupsForVpc)
     --> apply the below rules in this role (AmazonEKSLoadBalancerControllerRole)
