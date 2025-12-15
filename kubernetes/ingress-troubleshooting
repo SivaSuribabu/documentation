@@ -79,7 +79,21 @@ listeners
 Access ALB DNS name directly:
 curl http://<alb-dns-name>
 If:
-
 ❌ ALB DNS doesn’t work → backend issue
-
 ✅ ALB DNS works but domain doesn’t → Route53 / record issue
+
+
+
+10. Verify IngressClass Exists and Matches
+kubectl get ingressclass
+You MUST see:
+alb
+
+
+Describe it:
+kubectl describe ingressclass alb
+It must show:
+Controller: ingress.k8s.aws/alb
+
+
+
