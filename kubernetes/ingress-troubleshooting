@@ -1,0 +1,85 @@
+1. First Fix Your curl --resolve Test (You Used Wrong Syntax)
+curl --resolve www.devopswithsiva.info:80:100.28.5.47 http://www.devopswithsiva.info
+
+2. Check ALB Listener Rules (MOST COMMON ISSUE)
+In AWS Console → EC2 → Load Balancers → Your ALB
+
+Verify:
+Listener 80 or 443 exists
+Rule has:
+Host header = www.devopswithsiva.info
+Forward to Target Group
+If listener exists but no host-based rule, traffic will drop.
+
+3. Check Target Group Health (CRITICAL)
+Go to:
+EC2 → Target Groups → <ALB Target Group> → Targets
+Must be:healthy
+
+4. Verify Ingress Annotations (VERY IMPORTANT)
+Run:
+kubectl get ingress -n application -o yaml
+You must have:
+annotations:
+  kubernetes.io/ingress.class: alb
+  alb.ingress.kubernetes.io/scheme: internet-facing
+  alb.ingress.kubernetes.io/target-type: ip
+
+If using HTTPS:
+alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...
+
+5. Verify Service Type and Port Mapping
+kubectl get svc -n application
+
+Your service must be:
+Type: ClusterIP
+Port matches container port
+TargetPort correct
+
+Example:
+ports:
+- port: 80
+  targetPort: 8080
+
+Mismatch = ALB health check failure.
+
+
+6. Check ALB Security Group (VERY COMMON MISS)
+
+ALB SG must allow:
+Protocol	Port	Source
+HTTP	80	0.0.0.0/0
+HTTPS	443	0.0.0.0/0
+
+Node / Pod SG must allow:
+Inbound from ALB SG
+If blocked → no traffic reaches pods.
+
+7. Check Pod Health and Readiness
+kubectl get pods -n application
+kubectl describe pod <pod-name> -n application
+
+If:
+Readiness probe failing
+Pod not Ready
+ALB marks targets unhealthy.
+
+8. Verify ALB Controller Logs (Final Check)
+kubectl logs -n kube-system deploy/aws-load-balancer-controller
+
+Look for:
+Reconciled ingress
+No errors about:
+target group
+security groups
+listeners
+
+9. One Fast Isolation Test (VERY IMPORTANT)
+Access ALB DNS name directly:
+curl http://<alb-dns-name>
+If:
+
+❌ ALB DNS doesn’t work → backend issue
+
+✅ ALB DNS works but domain doesn’t → Route53 / record issue
