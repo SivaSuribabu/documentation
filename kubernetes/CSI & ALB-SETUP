@@ -98,3 +98,57 @@
 *************************Troubleshooting**************************************
 1. kubectl rollout restart deployment ebs-csi-controller -n kube-system
 
+
+
+****************************************ALB CONTROLLER SERVICE ACCOUNT  TROUBLE SHOOTING****************************************
+
+****************Problem statement*********************
+eksctl create iamserviceaccount --cluster=my-eks-cluster \
+--namespace=kube-system --name=aws-load-balancer-controller \
+--role-name AmazonEKSLoadBalancerControllerRole \
+--attach-policy-arn=arn:aws:iam::644209053375:policy/AWSLoadBalancerControllerIAMPolicy \
+--approve \
+--override-existing-serviceaccounts \
+
+****************error *********************
+2025-12-16 20:11:15 [ℹ] 2 existing iamserviceaccount(s)
+(kube-system/aws-load-balancer-controller,kube-system/ebs-csi-controller-sa) will be excluded 
+2025-12-16 20:11:15 [ℹ] 1 iamserviceaccount (kube-system/aws-load-balancer-controller) was excluded (based on the include/exclude rules)
+2025-12-16 20:11:15 [!] metadata of serviceaccounts that exist in Kubernetes will be updated, as --override-existing-serviceaccounts was set 
+2025-12-16 20:11:15 [ℹ] no tasks
+
+****************Solution***********************
+THIS ERROR IS RELATED TO SERVICE ACCOUNT, WE NEED TO DELETE THE EXISTING SERVICE ACCOUNTS .
+
+Step 1: Delete the Broken CloudFormation Stack
+
+Run exactly this:
+aws cloudformation delete-stack --stack-name eksctl-my-eks-cluster-addon-iamserviceaccount-kube-system-aws-load-balancer-controller
+
+Wait until deletion completes:
+aws cloudformation describe-stacks --stack-name eksctl-my-eks-cluster-addon-iamserviceaccount-kube-system-aws-load-balancer-controller
+
+Expected error:
+Stack with id ... does not exist
+
+Step 2: (Optional but Safe) Verify No Leftovers
+aws iam list-roles | grep LoadBalancer
+kubectl get sa -n kube-system | grep load-balancer
+
+Both should return nothing.
+
+Step 3: Ensure OIDC Provider Exists
+This must succeed (idempotent):
+eksctl utils associate-iam-oidc-provider \
+  --cluster my-eks-cluster \
+  --approve
+
+Step 4: Recreate IAM ServiceAccount (This Time It WILL Work)
+eksctl create iamserviceaccount \
+  --cluster my-eks-cluster \
+  --namespace kube-system \
+  --name aws-load-balancer-controller \
+  --role-name AmazonEKSLoadBalancerControllerRole \
+  --attach-policy-arn arn:aws:iam::644209053375:policy/AWSLoadBalancerControllerIAMPolicy \
+  --approve
+
