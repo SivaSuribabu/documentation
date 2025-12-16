@@ -1,3 +1,54 @@
+1. Where AWS Credentials Are Stored (Linux)
+AWS credentials are stored per user in the home directory:
+~/.aws/
+
+2. Configure AWS Credentials
+Basic configuration (default profile)
+aws configure
+Configure a named profile (recommended)
+aws configure --profile dev
+
+3.View Configured AWS Credentials
+List all profiles
+aws configure list-profiles
+
+4.View credentials file (safe to view, do not share)
+cat ~/.aws/credentials
+
+5.Check Which Profile Is Being Used
+Check environment variable
+echo $AWS_PROFILE
+
+6.Run a test command with a specific profile
+aws sts get-caller-identity --profile dev
+
+7. Delete AWS Credentials
+Delete a specific profile (recommended)
+
+Edit credentials file:
+nano ~/.aws/credentials
+
+8.Delete all AWS credentials (complete cleanup)
+rm -rf ~/.aws
+
+9.Unset AWS Environment Variables (Immediate Fix)
+
+Run in the current terminal:
+unset AWS_PROFILE
+unset AWS_ACCESS_KEY_ID
+unset AWS_SECRET_ACCESS_KEY
+unset AWS_SESSION_TOKEN
+
+
+Verify:
+echo $AWS_PROFILE
+
+
+Expected output:
+(empty)
+
+
+
 List all configured AWS profiles
 aws configure list-profiles
 
