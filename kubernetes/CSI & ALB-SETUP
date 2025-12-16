@@ -95,29 +95,39 @@
 5. sudo vim etc/hosts  --> update the "paste the IP address & domain name 10.0.0.0 example.com"
 
 
-*************************Troubleshooting**************************************
+*************************CSI driver Troubleshooting**************************************
 1. kubectl rollout restart deployment ebs-csi-controller -n kube-system
 
 
 
-****************************************ALB CONTROLLER SERVICE ACCOUNT  TROUBLE SHOOTING****************************************
+****************************************ALB CONTROLLER SERVICE ACCOUNT  TROUBLESHOOTING****************************************
 
+
+******************************************************
 ****************Problem statement*********************
+******************************************************
+
 eksctl create iamserviceaccount --cluster=my-eks-cluster \
 --namespace=kube-system --name=aws-load-balancer-controller \
 --role-name AmazonEKSLoadBalancerControllerRole \
 --attach-policy-arn=arn:aws:iam::644209053375:policy/AWSLoadBalancerControllerIAMPolicy \
 --approve \
---override-existing-serviceaccounts \
+--override-existing-serviceaccounts 
 
-****************error *********************
+
+**********************************************
+****************error ************************
+**********************************************
 2025-12-16 20:11:15 [ℹ] 2 existing iamserviceaccount(s)
 (kube-system/aws-load-balancer-controller,kube-system/ebs-csi-controller-sa) will be excluded 
 2025-12-16 20:11:15 [ℹ] 1 iamserviceaccount (kube-system/aws-load-balancer-controller) was excluded (based on the include/exclude rules)
 2025-12-16 20:11:15 [!] metadata of serviceaccounts that exist in Kubernetes will be updated, as --override-existing-serviceaccounts was set 
 2025-12-16 20:11:15 [ℹ] no tasks
 
+**********************************************
 ****************Solution***********************
+**********************************************
+
 THIS ERROR IS RELATED TO SERVICE ACCOUNT, WE NEED TO DELETE THE EXISTING SERVICE ACCOUNTS .
 
 Step 1: Delete the Broken CloudFormation Stack
@@ -152,3 +162,141 @@ eksctl create iamserviceaccount \
   --attach-policy-arn arn:aws:iam::644209053375:policy/AWSLoadBalancerControllerIAMPolicy \
   --approve
 
+
+******************************************************************************************************************
+**********************************INGRESS RESOURCE TROUBLESHOOTING************************************************
+******************************************************************************************************************
+
+. AWS Load Balancer Controller v2.16.0 (newer)
+. But the IAM policy attached is older or custom
+. Newer controller versions require additional ELBv2 permissions
+
+
+
+
+** Step 1: Download the Official IAM Policy (Latest)
+curl -o iam_policy.json \
+https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+
+
+**Replace Your Existing Policy (IMPORTANT)
+You already have this policy:
+AWSLoadBalancerControllerIAMPolicy
+
+Update it in-place:
+aws iam create-policy-version \
+  --policy-arn arn:aws:iam::644209053375:policy/AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json \
+  --set-as-default
+
+
+**Restart the Controller
+kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
+
+
+**Force Reconciliation (Mandatory)
+Now delete and recreate the Ingress:
+
+kubectl delete ingress frontend-proxy -n default
+kubectl apply -f ingress.yaml
+
+
+**Check Controller Logs (NO Errors)
+kubectl logs -f deployment/aws-load-balancer-controller -n kube-system
+
+You should NOT see:
+AccessDenied
+DescribeListenerAttributes
+
+
+**Ingress Address
+Run:
+kubectl get ing frontend-proxy -n default
+
+**Watch Reconciliation Logs LIVE
+Immediately after reapplying ingress:
+kubectl logs -f deployment/aws-load-balancer-controller -n kube-system
+
+You must see logs like:
+
+processing ingress default/frontend-proxy
+building load balancer model
+created load balancer
+created target group
+created listener
+created listener rule
+
+***********************************************************************************
+********************EBS&CSI DRIVER TROUBLESHOOTING*********************************
+***********************************************************************************
+
+1. Identify the Existing EBS CSI CloudFormation Stack
+
+From your earlier output, the stack name is:
+eksctl-my-eks-cluster-addon-iamserviceaccount-kube-system-ebs-csi-controller-sa
+
+2. Delete the EBS CSI IAM ServiceAccount (Correct Way)
+Recommended (eksctl-managed deletion)
+eksctl delete iamserviceaccount \
+  --cluster my-eks-cluster \
+  --namespace kube-system \
+  --name ebs-csi-controller-sa
+
+This command:
+Deletes the Kubernetes ServiceAccount (if exists)
+Deletes the IAM role
+Deletes the CloudFormation stack
+
+
+3. If eksctl Delete Fails (Force Cleanup)
+3.1 Delete the CloudFormation Stack Manually
+aws cloudformation delete-stack \
+  --stack-name eksctl-my-eks-cluster-addon-iamserviceaccount-kube-system-ebs-csi-controller-sa
+
+Wait until deletion finishes:
+aws cloudformation describe-stacks \
+  --stack-name eksctl-my-eks-cluster-addon-iamserviceaccount-kube-system-ebs-csi-controller-sa
+
+Expected:
+Stack with id ... does not exist
+
+
+3.2 Verify Everything Is Gone
+kubectl get sa -n kube-system | grep ebs
+aws iam list-roles | grep EBS
+
+No output = clean state.
+
+
+4. Ensure OIDC Provider Is Associated (One-Time Check)
+eksctl utils associate-iam-oidc-provider \
+  --cluster my-eks-cluster \
+  --approve
+
+
+5. Create a New EBS CSI IAM ServiceAccount (Clean)
+5.1 Create IAM ServiceAccount
+eksctl create iamserviceaccount \
+  --cluster my-eks-cluster \
+  --namespace kube-system \
+  --name ebs-csi-controller-sa \
+  --role-name AmazonEKS_EBS_CSI_DriverRole \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+  --approve
+
+
+**********Quick Reference (Copy-Paste Safe for CSI Driver)************************
+eksctl delete iamserviceaccount --cluster my-eks-cluster --namespace kube-system --name ebs-csi-controller-sa
+
+aws cloudformation delete-stack \
+  --stack-name eksctl-my-eks-cluster-addon-iamserviceaccount-kube-system-ebs-csi-controller-sa
+
+eksctl utils associate-iam-oidc-provider --cluster my-eks-cluster --approve
+
+eksctl create iamserviceaccount \
+  --cluster my-eks-cluster \
+  --namespace kube-system \
+  --name ebs-csi-controller-sa \
+  --role-name AmazonEKS_EBS_CSI_DriverRole \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+  --approve
