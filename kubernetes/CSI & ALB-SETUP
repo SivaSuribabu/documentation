@@ -301,3 +301,61 @@ eksctl create iamserviceaccount \
   --role-name AmazonEKS_EBS_CSI_DriverRole \
   --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
   --approve
+
+
+
+***************************************************************************
+****************DNS PROPOGATION ISSUES TROUBLESHOOTING*********************
+***************************************************************************
+
+STEP 1: Verify ALB Routing (Important Test)
+
+Run this command now:
+curl -H "Host: www.devopswithsiva.info" \
+http://k8s-default-frontend-6e54782b3e-165510676.us-east-1.elb.amazonaws.com
+
+STEP2: How to Know Propagation Is Done (No Guessing)
+✅ Command-Line Checks
+Check authoritative name servers
+dig NS devopswithsiva.info +short
+
+
+If you see AWS name servers like:
+ns-123.awsdns-45.com
+ns-678.awsdns-90.net
+
+
+STEP 3:Check record resolution
+dig www.devopswithsiva.info +short
+
+If it returns:
+k8s-default-frontend-6e54782b3e-165510676.us-east-1.elb.amazonaws.com
+or IPs → propagation is complete.
+
+STEP 4: Browser-Independent Test (BEST)
+curl -I http://www.devopswithsiva.info
+
+If you get:
+HTTP/1.1 200 OK
+or app response → DNS + ALB is working.
+
+STEP 5: How to Speed It Up (Optional)
+Flush local DNS cache (Linux)
+sudo systemd-resolve --flush-caches
+
+
+Restart resolver:
+sudo systemctl restart systemd-resolved
+
+Test from Google DNS (Bypasses local cache)
+nslookup www.devopswithsiva.info 8.8.8.8
+
+Absolute Rule (Remember This)
+NS propagation depends on registrar name servers, not Route 53 itself.
+
+Final Timeline Summary
+Step	                        Time
+Hosted zone creation	       Immediate
+Nameserver change	          30 min – 2 hrs
+DNS record visibility	      1–5 min
+Total realistic time	      ~1 hour
