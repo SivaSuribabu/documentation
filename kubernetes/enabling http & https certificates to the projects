@@ -1,0 +1,198 @@
+**********************************************************************************************************************
+***************************HTTP & HTTPS CERTIFCATE AND INGRESS UPDATION***********************************************
+**********************************************************************************************************************
+  
+1.Enable HTTPS with ACM
+2.Add HTTP → HTTPS redirect
+3.Configure root domain (devopswithsiva.info) along with www
+
+OVERVIEW (What We Will Do)
+
+Target architecture:
+Internet
+ └── ALB
+     ├── HTTP :80  → Redirect → HTTPS :443
+     └── HTTPS:443 → ACM cert → EKS service
+
+Domains:
+devopswithsiva.info
+www.devopswithsiva.info
+
+  STEP 1: Request ACM Certificate (MANDATORY FIRST)
+
+⚠️ ACM certificate MUST be in the same region as ALB
+Your ALB is in us-east-1, so ACM must be us-east-1.
+
+1.1 Open ACM (us-east-1)
+AWS Console → Certificate Manager → Request certificate
+
+Choose:
+Request a public certificate
+
+1.2 Add Domain Names
+Add both:
+devopswithsiva.info
+www.devopswithsiva.info
+
+
+Validation method:
+DNS validation (recommended)
+
+
+Key algorithm:
+RSA 2048 (default)
+Submit.
+
+1.3 Validate Certificate (DNS)
+ACM will show two CNAME records.
+
+If your DNS is in Route 53:
+Click Create records in Route 53
+
+Done in seconds
+
+If DNS is external:
+Copy CNAMEs
+Add them manually
+
+1.4 Wait for Status
+Wait until:
+Status: Issued
+
+
+STEP 2: Update Ingress for HTTPS + Redirect
+Now we update your Ingress YAML.
+
+2.1 Final Production Ingress YAML
+
+Create / update ingress.yaml:
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-proxy
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # HTTPS Listener
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+
+    # ACM Certificate ARN (REPLACE THIS)
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+
+    # HTTP → HTTPS Redirect
+    alb.ingress.kubernetes.io/actions.ssl-redirect: >
+      {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
+
+spec:
+  ingressClassName: alb
+  rules:
+
+  # ROOT DOMAIN
+  - host: devopswithsiva.info
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: opentelemetry-demo-frontendproxy
+            port:
+              number: 8080
+
+  # WWW DOMAIN
+  - host: www.devopswithsiva.info
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: opentelemetry-demo-frontendproxy
+            port:
+              number: 8080
+
+2.2 Apply the Ingress
+kubectl apply -f ingress.yaml
+
+2.3 Verify Controller Logs
+kubectl logs -f deployment/aws-load-balancer-controller -n kube-system
+
+
+You should see:
+created HTTPS listener
+updated listener rules
+
+
+
+STEP 3: Configure DNS for ROOT + WWW
+3.1 Route 53 Records
+
+In Hosted Zone: devopswithsiva.info
+Create two A-Alias records.
+
+Record 1: Root Domain
+Field	Value
+Name	devopswithsiva.info
+Type	A
+Alias	Yes
+Alias target	ALB DNS
+Routing	Simple
+
+Record 2: WWW Domain
+Field	Value
+Name	www.devopswithsiva.info
+Type	A
+Alias	Yes
+Alias target	ALB DNS
+Routing	Simple
+⏱ Usually 1–3 minutes (Route 53)
+
+STEP 4: Verify HTTPS + Redirect
+4.1 Test HTTP → HTTPS Redirect
+curl -I http://www.devopswithsiva.info
+
+
+Expected:
+HTTP/1.1 301 Moved Permanently
+Location: https://www.devopswithsiva.info
+
+4.2 Test HTTPS
+curl -I https://www.devopswithsiva.info
+Expected:
+HTTP/2 200
+
+4.3 Browser Test
+Open:
+https://devopswithsiva.info
+https://www.devopswithsiva.info
+
+🔒 Green lock icon → success
+
+STEP 5: Verify ALB Listeners (Console)
+EC2 → Load Balancers → Your ALB
+
+You should see:
+Listener 80 → Redirect to HTTPS
+Listener 443 → Forward to target group
+
+Certificate attached
+
+
+
+COMMON MISTAKES (Avoid These)
+
+❌ ACM certificate in wrong region
+❌ Missing root domain in cert
+❌ Using CNAME instead of Alias for root
+❌ Not restarting ingress after cert change
+
+FINAL CHECKLIST
+Item	Status
+ACM issued	✅
+HTTPS listener	✅
+HTTP redirect	✅
+Root domain works	✅
+WWW works	✅
