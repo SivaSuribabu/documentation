@@ -185,20 +185,17 @@ metadata:
   name: frontend-proxy
   namespace: default
   annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    # HTTPS Listener
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-    # ACM Certificate ARN (REPLACE THIS)
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-    # HTTP → HTTPS Redirect
-    alb.ingress.kubernetes.io/actions.ssl-redirect: >
-      {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
-
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3
+      # HTTP → HTTPS Redirect
+      alb.ingress.kubernetes.io/actions.ssl-redirect: >
+        {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
 spec:
   ingressClassName: alb
   rules:
-
   # ROOT DOMAIN
   - host: devopswithsiva.info
     http:
