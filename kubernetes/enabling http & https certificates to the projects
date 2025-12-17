@@ -67,59 +67,13 @@ Now we update your Ingress YAML.
 
 Create / update ingress.yaml:
 
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: frontend-proxy
-  namespace: default
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
 
-    # HTTPS Listener
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-
-    # ACM Certificate ARN (REPLACE THIS)
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-
-    # HTTP → HTTPS Redirect
-    alb.ingress.kubernetes.io/actions.ssl-redirect: >
-      {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
-
-spec:
-  ingressClassName: alb
-  rules:
-
-  # ROOT DOMAIN
-  - host: devopswithsiva.info
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: opentelemetry-demo-frontendproxy
-            port:
-              number: 8080
-
-  # WWW DOMAIN
-  - host: www.devopswithsiva.info
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: opentelemetry-demo-frontendproxy
-            port:
-              number: 8080
 
 2.2 Apply the Ingress
 kubectl apply -f ingress.yaml
 
 2.3 Verify Controller Logs
 kubectl logs -f deployment/aws-load-balancer-controller -n kube-system
-
 
 You should see:
 created HTTPS listener
@@ -153,7 +107,6 @@ Routing	Simple
 STEP 4: Verify HTTPS + Redirect
 4.1 Test HTTP → HTTPS Redirect
 curl -I http://www.devopswithsiva.info
-
 
 Expected:
 HTTP/1.1 301 Moved Permanently
@@ -196,3 +149,260 @@ HTTPS listener	✅
 HTTP redirect	✅
 Root domain works	✅
 WWW works	✅
+
+5. How to Confirm Success (Do This After Creating Records)
+aws acm describe-certificate \
+  --certificate-arn arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3 \
+  --query "Certificate.Status"
+
+Expected:
+"ISSUED"
+
+6. After Certificate Is ISSUED (Next Mandatory Step)
+You must ensure your Ingress annotation uses the same certificate ARN:
+alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3
+
+Then apply:
+kubectl apply -f ingress.yaml
+ALB will automatically attach the cert.
+
+
+7. What You Should Do NOW (Exact Order)
+Open ACM → Create records in Route 53
+Wait 1–2 minutes
+
+Re-run:
+aws acm describe-certificate --certificate-arn arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3 --query Certificate.Status
+
+8. Perfect — since the ACM certificate status is now ISSUED, we can complete the final HTTPS + redirect setup and verification cleanly.
+I will give you exact steps, in the correct order, with commands and expected results.
+STEP 1: Confirm / Fix Ingress for HTTPS (Mandatory)
+Your Ingress must explicitly define HTTPS and attach the certificate.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-proxy
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # HTTPS Listener
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    # ACM Certificate ARN (REPLACE THIS)
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+    # HTTP → HTTPS Redirect
+    alb.ingress.kubernetes.io/actions.ssl-redirect: >
+      {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
+
+spec:
+  ingressClassName: alb
+  rules:
+
+  # ROOT DOMAIN
+  - host: devopswithsiva.info
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: opentelemetry-demo-frontendproxy
+            port:
+              number: 8080
+
+  # WWW DOMAIN
+  - host: www.devopswithsiva.info
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: opentelemetry-demo-frontendproxy
+            port:
+              number: 8080
+
+
+9: Recreate the Ingress (Required)
+This is critical because the HTTPS listener will not be added unless the Ingress is recreated.
+
+kubectl delete ingress frontend-proxy
+kubectl apply -f ingress.yaml
+Wait 2–3 minutes.
+
+10. : Verify ALB Listeners in AWS Console
+
+Go to:
+EC2 → Load Balancers → k8s-default-frontend-*
+
+You MUST see:
+Protocol	Port	Action
+HTTP	80	Redirect → HTTPS:443
+HTTPS	443	Forward → target group
+If HTTPS is missing → STOP and tell me.
+
+
+10. Verify from CLI
+10.1 HTTPS should work
+curl -I https://www.devopswithsiva.info
+
+Expected:
+HTTP/2 200
+
+10.2 HTTP should redirect
+curl -I http://www.devopswithsiva.info
+Expected:
+HTTP/1.1 301 Moved Permanently
+Location: https://www.devopswithsiva.info
+
+11.  Verify DNS Resolution (Public)
+nslookup www.devopswithsiva.info 8.8.8.8
+
+Should return:
+k8s-default-frontend-xxxx.elb.amazonaws.com
+
+12. Final Kubernetes Verification
+kubectl get ingress frontend-proxy
+kubectl describe ingress frontend-proxy
+
+You should see:
+ADDRESS populated
+Certificate ARN annotation
+HTTPS listed in events
+
+
+
+****************************************************************************************************
+*******************************************TROUBLE SHOOTING ****************************************
+****************************************************************************************************
+
+1. DNS is DEFINITELY in Route 53 ✅
+
+From:
+dig NS devopswithsiva.info +short
+
+You got:
+ns-679.awsdns-20.net
+ns-1436.awsdns-51.org
+ns-1996.awsdns-57.co.uk
+ns-434.awsdns-54.com
+
+➡️ These are AWS Route 53 name servers
+➡️ Registrar → Route 53 delegation is correct
+➡️ DNS propagation to Route 53 is already done
+
+2. Certificate is in the CORRECT REGION ✅
+You queried:
+aws acm describe-certificate --certificate-arn arn:aws:acm:us-east-1:...
+
+✔️ That means:
+Certificate is in us-east-1
+Same region as your ALB
+Correct for HTTPS
+
+3. 3. Certificate is Still PENDING ❌ (Why?)
+Certificate.Status = PENDING_VALIDATION
+
+
+And:
+DomainValidationOptions.DomainName:
+- www.devopswithsiva.info
+- devopswithsiva.info
+
+➡️ ACM is waiting for DNS validation records
+➡️ Those records are NOT present in Route 53
+This is the only remaining blocker.
+
+
+1: Confirm DNS Resolution via Public DNS (Authoritative Test)
+Run exactly this:
+nslookup www.devopswithsiva.info 8.8.8.8
+
+Expected:
+Returns your ALB DNS name
+
+
+2: Force Bypass Local DNS Cache (Guaranteed Test)
+Run:
+curl -I \
+  --resolve www.devopswithsiva.info:443:k8s-default-frontend-6e54782b3e-165510676.us-east-1.elb.amazonaws.com \
+  https://www.devopswithsiva.info
+
+Expected:
+HTTP/2 200
+If you get 200, your HTTPS config is 100% correct.
+
+3: Ensure Ingress Uses the ISSUED Certificate
+Verify your Ingress:
+kubectl describe ingress frontend-proxy
+
+You must see:
+alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3
+if missing → ALB will hang on HTTPS.
+
+If Missing, Fix Immediately
+kubectl annotate ingress frontend-proxy \
+  alb.ingress.kubernetes.io/certificate-arn=arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3 \
+  --overwrite
+
+4: Ensure HTTPS Listener Exists on ALB
+
+In AWS Console:
+EC2 → Load Balancers
+
+Select:
+k8s-default-frontend-6e54782b3e
+
+Listeners tab
+You must see:
+Protocol	Port
+HTTPS	443
+HTTP	80 (redirects to 443)
+
+If HTTPS 443 is missing → Ingress was applied before cert was ISSUED.
+Fix (Safe)
+kubectl delete ingress frontend-proxy
+kubectl apply -f ingress.yaml
+
+
+
+
+1. curl -I http://www.devopswithsiva.info
+expected output :
+HTTP/1.1 200 OK
+Date: Wed, 17 Dec 2025 18:06:49 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 76592
+Connection: keep-alive
+x-powered-by: Next.js
+cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+etag: "cysb1rgze01n3k"
+vary: Accept-Encoding
+x-envoy-upstream-service-time: 13
+server: envoy
+
+2. curl -I http://www.devopswithsiva.info
+expected output:
+HTTP/1.1 301 Moved Permanently
+
+3.Ensure HTTPS Listener Exists on ALB
+In AWS Console:
+
+EC2 → Load Balancers
+Select:
+k8s-default-frontend-6e54782b3e
+
+Listeners tab
+You must see:
+Protocol	Port
+HTTPS	443
+HTTP	80 (redirects to 443)
+
+If HTTPS 443 is missing → Ingress was applied before cert was ISSUED.
+Fix (Safe)
+kubectl delete ingress frontend-proxy
+kubectl apply -f ingress.yaml
+
+
+
