@@ -1,0 +1,128 @@
+Architecture (Target State)
+User
+ ↓
+CloudFront (CDN + TLS + Edge)
+ ↓
+ALB (Ingress Controller)
+ ↓
+Kubernetes Service → Pods
+
+STEP 0: Prerequisites (Confirm Once)
+0.1 ALB must be HTTPS-enabled (you already did this)
+
+Listener: 443
+Certificate: ISSUED
+Domain works directly on ALB
+
+Verify once:
+curl -I https://www.devopswithsiva.info
+Must return 200.
+
+STEP 1: Request / Reuse ACM Certificate for CloudFront
+⚠️ CloudFront requires ACM cert ONLY in us-east-1
+Good news:
+Your certificate is already in us-east-1, so reuse it.
+Certificate ARN:
+arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3
+
+Domains on cert:
+devopswithsiva.info
+www.devopswithsiva.info
+✅ Perfect for CloudFront.
+
+
+STEP 2: Create CloudFront Distribution
+2.1 Open CloudFront
+AWS Console → CloudFront → Create distribution
+
+2.2 Origin Configuration
+Field	Value
+Origin domain	Your ALB DNS
+k8s-default-frontend-6e54782b3e-165510676.us-east-1.elb.amazonaws.com
+Origin type	Application Load Balancer
+Protocol policy	HTTPS only
+HTTP port	80
+HTTPS port	443
+Origin SSL protocols	TLSv1.2
+
+❌ Do NOT use S3 origin
+❌ Do NOT enable Origin Shield now (optional later)
+
+2.3 Default Cache Behavior
+Setting	Value
+Viewer protocol policy	Redirect HTTP to HTTPS
+Allowed HTTP methods	GET, HEAD, OPTIONS
+Cache policy	Managed-CachingOptimized
+Origin request policy	Managed-AllViewer
+Compress objects	Yes
+2.4 Distribution Settings
+Field	Value
+Alternate domain names (CNAMEs)	devopswithsiva.info, www.devopswithsiva.info
+Custom SSL certificate	Select your ACM cert
+Security policy	TLSv1.2_2021
+Default root object	(leave blank)
+
+Click Create distribution.
+⏱️ Takes 10–20 minutes to deploy.
+
+STEP 3: Update Route 53 (CRITICAL)
+
+CloudFront gives you a domain like:
+d3xxxxxx.cloudfront.net
+
+3.1 Route 53 → Hosted zone → devopswithsiva.info
+Update / Create Records
+A Record – Root Domain
+Name: devopswithsiva.info
+Type: A
+Alias: Yes
+Alias target: CloudFront distribution
+
+A Record – www
+Name: www.devopswithsiva.info
+Type: A
+Alias: Yes
+Alias target: CloudFront distribution
+
+
+❌ Remove ALB alias if present
+✅ CloudFront must be the DNS endpoint
+
+STEP 4: Verify DNS Propagation
+nslookup www.devopswithsiva.info 8.8.8.8
+Expected:
+cloudfront.net
+
+STEP 5: Final Validation
+5.1 HTTPS via CloudFront
+curl -I https://www.devopswithsiva.info
+Expected:
+HTTP/2 200
+server: CloudFront
+
+5.2 HTTP redirect
+curl -I http://www.devopswithsiva.info
+Expected:
+301 → https://www.devopswithsiva.info
+
+STEP 6: (Recommended) ALB Lockdown for Security
+Once CloudFront works, restrict ALB to CloudFront only.
+Option A (Best): Security Group
+Remove 0.0.0.0/0
+Allow inbound only from CloudFront IP ranges
+
+
+Option B (Simpler)
+Keep ALB public but rely on WAF (next step)
+
+Final Result Checklist
+Feature	Status
+CloudFront CDN	✅
+Global caching	✅
+HTTPS at edge	✅
+HTTP → HTTPS	✅
+ALB behind CDN	✅
+Lower latency	✅
+DDoS protection	✅
+One-Line Summary
+CloudFront is now the public entry point, serving HTTPS globally and forwarding traffic securely to your ALB-backed EKS Ingress.
