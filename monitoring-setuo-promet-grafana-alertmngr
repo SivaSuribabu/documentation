@@ -1,0 +1,351 @@
+Step 1: Install kube-prometheus-stack
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo update
+
+Step 2: kubectl create ns monitoring
+
+Step 3: 
+  helm install monitoring prometheus-community/kube-prometheus-stack \
+  -n monitoring \
+  -f ./custom_kube_prometheus_stack.yml
+
+***********************************************************************************************************************************
+******************************** CREATE custom_kube_prometheus_stack.yml FILE IN CURRENT DIRECTORY ********************************
+***********************************************************************************************************************************
+
+alertmanager:
+  alertmanagerSpec:
+    # Selects Alertmanager configuration based on these labels. Ensure that the Alertmanager configuration has matching labels.
+    # ✅ Solves error: Misconfigured Alertmanager selectors can lead to missing alert configurations.
+    # ✅ Solves error: Alertmanager wasn't able to findout the applied CRD (kind: Alertmanagerconfig)
+    alertmanagerConfigSelector:
+      matchLabels:
+        release: monitoring
+
+    # Sets the number of Alertmanager replicas to 3 for high availability.
+    # ✅ Solves error: Single replica can cause alerting issues during pod failures.
+    # ✅ Solves error: Alertmanager Cluster Status is Disabled (GitHub issue)
+    replicas: 2
+
+    # Sets the strategy for matching Alertmanager configurations. 'None' means no specific matching strategy.
+    # ✅ Solves error: Incorrect matcher strategy can lead to unhandled alert configurations.
+    # ✅ Solves error: Get rid of namespace matchers when creating AlertManagerConfig (GitHub issue)
+    alertmanagerConfigMatcherStrategy:
+      type: None
+
+***********************************************************************************************************************************
+Step 4: Verify the Installation
+kubectl get all -n monitoring
+
+
+Prometheus UI:
+kubectl port-forward service/prometheus-operated -n monitoring 9090:9090
+
+Grafana UI: password is prom-operator
+kubectl port-forward service/monitoring-grafana -n monitoring 8080:80
+
+Alertmanager UI:
+kubectl port-forward service/alertmanager-operated -n monitoring 9093:9093
+***********************************************************************************************************************************
+
+
+
+
+***********************************************************************************************************************************
+****************************************************** TROUBLE SHOOTING ***********************************************************
+***********************************************************************************************************************************
+1. Production Dashboard Design Principles (Very Important)
+
+Before queries, understand how production dashboards are designed:
+
+Golden Rules
+
+Dashboards are read-only operational views, not experiments
+
+Use rate(), avg_over_time(), histogram_quantile()
+
+Always scope by:
+
+cluster
+
+namespace
+
+node
+
+pod
+
+Prefer percentages over raw numbers
+
+Use variables heavily
+
+2. Create Dashboard Variables (First Step)
+
+In Grafana → Dashboard → Settings → Variables
+
+2.1 Cluster Variable
+label_values(kube_node_info, cluster)
+
+
+Variable name: cluster
+
+2.2 Namespace Variable
+label_values(kube_namespace_created, namespace)
+
+
+Enable:
+
+Multi-value
+
+Include All
+
+2.3 Node Variable
+label_values(kube_node_info{cluster="$cluster"}, node)
+
+2.4 Pod Variable
+label_values(kube_pod_info{namespace="$namespace"}, pod)
+
+3. Cluster Overview Dashboard (Executive View)
+3.1 Total Cluster CPU Usage (%)
+sum(rate(container_cpu_usage_seconds_total{cluster="$cluster", container!="", image!=""}[5m]))
+/
+sum(kube_node_status_allocatable{resource="cpu", cluster="$cluster"})
+* 100
+
+
+Visualization:
+
+Gauge
+
+Thresholds: 60% (yellow), 80% (red)
+
+3.2 Total Cluster Memory Usage (%)
+sum(container_memory_working_set_bytes{cluster="$cluster", container!="", image!=""})
+/
+sum(kube_node_status_allocatable{resource="memory", cluster="$cluster"})
+* 100
+
+3.3 Number of Nodes (Healthy vs NotReady)
+sum(kube_node_status_condition{condition="Ready", status="true", cluster="$cluster"})
+
+sum(kube_node_status_condition{condition="Ready", status="false", cluster="$cluster"})
+
+4. Node-Level Advanced Dashboard (Infra Team)
+4.1 Node CPU Usage (% per node)
+100 - (
+avg by (node) (
+  rate(node_cpu_seconds_total{mode="idle", cluster="$cluster"}[5m])
+) * 100
+)
+
+4.2 Node Memory Usage (%)
+(
+node_memory_MemTotal_bytes{cluster="$cluster"}
+-
+node_memory_MemAvailable_bytes{cluster="$cluster"}
+)
+/
+node_memory_MemTotal_bytes{cluster="$cluster"}
+* 100
+
+4.3 Disk Usage (%)
+(
+node_filesystem_size_bytes{fstype!="tmpfs", cluster="$cluster"}
+-
+node_filesystem_avail_bytes{fstype!="tmpfs", cluster="$cluster"}
+)
+/
+node_filesystem_size_bytes{fstype!="tmpfs", cluster="$cluster"}
+* 100
+
+4.4 Node Network Traffic (RX / TX)
+sum by (node) (
+  rate(node_network_receive_bytes_total{cluster="$cluster"}[5m])
+)
+
+sum by (node) (
+  rate(node_network_transmit_bytes_total{cluster="$cluster"}[5m])
+)
+
+
+Visualization:
+
+Time series
+
+Unit: bytes/sec
+
+5. Namespace-Level Dashboard (Platform / Cost View)
+5.1 CPU Usage per Namespace
+sum by (namespace) (
+rate(container_cpu_usage_seconds_total{cluster="$cluster", container!="", image!=""}[5m])
+)
+
+5.2 Memory Usage per Namespace
+sum by (namespace) (
+container_memory_working_set_bytes{cluster="$cluster", container!="", image!=""}
+)
+
+5.3 Pod Count per Namespace
+count by (namespace) (
+kube_pod_status_phase{phase="Running", cluster="$cluster"}
+)
+
+5.4 Top 5 Namespaces by CPU (Cost Optimization)
+topk(5,
+sum by (namespace) (
+rate(container_cpu_usage_seconds_total{cluster="$cluster"}[5m])
+)
+)
+
+6. Pod / Application Dashboard (Dev + SRE)
+6.1 Pod CPU Usage
+rate(container_cpu_usage_seconds_total{
+cluster="$cluster",
+namespace="$namespace",
+pod="$pod",
+container!="",
+image!=""
+}[5m])
+
+6.2 Pod Memory Usage
+container_memory_working_set_bytes{
+cluster="$cluster",
+namespace="$namespace",
+pod="$pod",
+container!="",
+image!=""
+}
+
+6.3 Pod Restart Count (Critical in Prod)
+increase(kube_pod_container_status_restarts_total{
+cluster="$cluster",
+namespace="$namespace"
+}[15m])
+
+
+Set alert if > 0.
+
+6.4 OOMKilled Pods
+kube_pod_container_status_last_terminated_reason{
+reason="OOMKilled",
+cluster="$cluster"
+}
+
+7. Request vs Actual Usage (MOST IMPORTANT FOR PROD)
+7.1 CPU Requests vs Usage
+
+Usage
+
+sum by (pod) (
+rate(container_cpu_usage_seconds_total{namespace="$namespace"}[5m])
+)
+
+
+Requests
+
+sum by (pod) (
+kube_pod_container_resource_requests{resource="cpu", namespace="$namespace"}
+)
+
+
+Overlay both lines → detect over/under provisioning.
+
+7.2 Memory Requests vs Usage
+sum by (pod) (
+container_memory_working_set_bytes{namespace="$namespace"}
+)
+
+sum by (pod) (
+kube_pod_container_resource_requests{resource="memory", namespace="$namespace"}
+)
+
+8. Kubernetes Health Dashboard (Reliability)
+8.1 Pending Pods
+count(
+kube_pod_status_phase{phase="Pending", cluster="$cluster"}
+)
+
+8.2 Failed Pods
+count(
+kube_pod_status_phase{phase="Failed", cluster="$cluster"}
+)
+
+8.3 CrashLoopBackOff Containers
+kube_pod_container_status_waiting_reason{
+reason="CrashLoopBackOff",
+cluster="$cluster"
+}
+
+9. Alerts You MUST Create (Grafana or Alertmanager)
+Alert	Condition
+Node CPU	> 80% for 5m
+Node Memory	> 85%
+Pod Restart	> 2 in 10m
+Disk Usage	> 90%
+Pending Pods	> 0
+OOMKilled	Any
+
+10. Recommended Dashboard Structure (Real Production)
+Cluster Overview
+Node Health
+Namespace / Cost
+Application / Pod
+Kubernetes Health
+Alerts Summary
+
+
+
+
+***********************************************************************************************************************************
+****************************************************** TROUBLE SHOOTING ***********************************************************
+***********************************************************************************************************************************
+STEP 1:
+Check If Password Was Changed (Very Common in EKS)
+Grafana password is usually stored in a Kubernetes Secret.
+
+Find the secret:
+kubectl get secret -n <namespace> | grep grafana
+
+Decode admin password:
+kubectl get secret <grafana-secret-name> -n <namespace> \
+-o jsonpath="{.data.admin-password}" | base64 -d
+
+
+Username:
+
+kubectl get secret <grafana-secret-name> -n <namespace> \
+-o jsonpath="{.data.admin-user}" | base64 -d
+
+STEP 2:
+Check Grafana Logs for Login or Auth Errors
+kubectl logs <grafana-pod-name> -n <namespace> | grep -i error
+
+Look for:
+auth failures
+database lock
+permission issues
+sqlite corruption
+
+STEP 3:
+Quick Test: Port Forward Using Service Instead of Pod
+This avoids pod restarts breaking access:
+
+kubectl get svc -n <namespace>
+kubectl port-forward svc/<grafana-service-name> 8080:80 -n <namespace>
+
+STEP 4:
+Hard Reset Admin Password (Last Resort)
+kubectl exec -it <grafana-pod-name> -n <namespace> -- \
+grafana-cli admin reset-admin-password admin123
+
+Then login with:
+admin / admin123
+
+STEP 5:
+Most Common Root Causes (From Experience)
+
+Wrong internal port (used 8080:8080 instead of 8080:3000)
+Port-forward process stopped
+Admin password changed via Helm
+Logging in via HTTPS instead of HTTP
+Using wrong namespace
+Grafana pod restarted after port-forward
