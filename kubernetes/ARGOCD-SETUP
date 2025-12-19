@@ -1,6 +1,280 @@
-1. Install Argo CD
-* kubectl create namespace argocd
-* kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+Argo CD–Based GitOps Deployment on AWS EKS
 
-2. Expose Argo CD Server Service in NodePort Mode & and change the type to NodePort from ClusterIP
-* kubectl edit svc argocd-server -n argocd
+Enterprise Implementation Guide
+
+1. Architecture Overview (Target State)
+GitOps Flow
+
+Developer
+   |
+   | (git push)
+   v
+GitHub (Manifests Repo)
+   |
+   | (sync)
+   v
+Argo CD (EKS)
+   |
+   | (apply manifests)
+   v
+Kubernetes (EKS)
+   |
+   |--> Pods (DockerHub images)
+   |--> Services
+   |--> Ingress (ALB)
+   |--> Route53
+   |--> CloudFront
+   |--> AWS WAF
+
+
+Observability
+Prometheus scrapes metrics
+Grafana dashboards visualize
+Alertmanager triggers alerts
+
+2. Prerequisites Checklist (Already Done by You)
+✔ EKS Cluster running
+✔ kubectl configured
+✔ Docker images pushed to DockerHub
+✔ AWS Load Balancer Controller installed
+✔ Ingress working with ALB
+✔ Route53 Hosted Zone configured
+✔ CloudFront + WAF attached
+✔ Prometheus Stack installed
+
+3. Git Repository Structure (Enterprise Standard)
+Create a dedicated GitOps repository.
+
+eks-gitops-argocd/
+├── applications/
+│   ├── prod/
+│   │   └── ecommerce-app.yaml
+│   ├── staging/
+│   └── dev/
+│
+├── manifests/
+│   ├── ecommerce/
+│   │   ├── namespace.yaml
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   ├── ingress.yaml
+│   │   └── hpa.yaml
+│
+├── argocd/
+│   ├── project.yaml
+│   └── app-of-apps.yaml
+│
+└── README.md
+
+
+Why this structure
+Environment isolation
+Audit-friendly
+Scales to multiple applications
+Industry-standard GitOps layout
+
+
+4. Install Argo CD on EKS
+4.1 Create Namespace
+kubectl create namespace argocd
+
+Explanation
+Separates Argo CD system components from application workloads.
+
+
+4.2 Install Argo CD Core Components
+kubectl apply -n argocd \
+-f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+What gets installed
+argocd-server (UI + API)
+argocd-repo-server (Git operations)
+argocd-application-controller (sync engine)
+Redis (state management)
+
+
+4.3 Verify Installation
+kubectl get pods -n argocd
+
+Expected:
+argocd-server-xxxxx        Running
+argocd-repo-server-xxxxx   Running
+argocd-application-xxxxx   Running
+
+
+5. Expose Argo CD Securely (ALB Ingress – Production)
+5.1 Create Argo CD Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+spec:
+  rules:
+  - host: argocd.devopswithsiva.in
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
+
+kubectl apply -f argocd-ingress.yaml
+
+Enterprise Notes
+TLS termination via ALB
+Can be protected using AWS WAF
+DNS mapped using Route53
+
+
+6. Access Argo CD
+6.1 Get Initial Admin Password
+kubectl get secret argocd-initial-admin-secret \
+-n argocd -o jsonpath="{.data.password}" | base64 -d
+
+
+Login:
+https://argocd.devopswithsiva.in
+
+7. Register EKS Cluster in Argo CD
+(For same cluster, auto-registered)
+
+Verify:
+argocd cluster list
+
+8. Create Argo CD Project (Enterprise Governance)
+8.1 Project Definition
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ecommerce-project
+  namespace: argocd
+spec:
+  sourceRepos:
+  - https://github.com/SivaSuribabu/*
+  destinations:
+  - namespace: '*'
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+
+kubectl apply -f argocd/project.yaml
+
+
+Why
+Restricts repositories
+Controls namespaces
+Enforces security boundaries
+
+9. Kubernetes Manifests (Sample)
+9.1 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-app
+  namespace: ecommerce
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ecommerce
+  template:
+    metadata:
+      labels:
+        app: ecommerce
+    spec:
+      containers:
+      - name: app
+        image: sivasuribabu/ecommerce:1.0.0
+        ports:
+        - containerPort: 8080
+
+
+Key Points
+Image from DockerHub
+Immutable image tag recommended
+
+10. Create Argo CD Application (Core GitOps Object)
+10.1 Application Manifest
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ecommerce-prod
+  namespace: argocd
+spec:
+  project: ecommerce-project
+  source:
+    repoURL: https://github.com/SivaSuribabu/eks-gitops-argocd
+    targetRevision: main
+    path: manifests/ecommerce
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+kubectl apply -f applications/prod/ecommerce-app.yaml
+
+11. GitOps Automation Explained
+Feature	Description
+Auto Sync	Deploys on every git push
+Prune	Deletes removed resources
+Self-Heal	Fixes manual drift
+Audit	Full Git history
+
+12. Image Update Strategy (Enterprise)
+Option A: Git Commit (Recommended)
+
+CI updates image tag in deployment.yaml
+Commit → Argo CD auto deploys
+
+Option B: Argo CD Image Updater
+Automatically tracks DockerHub tags
+Optional for advanced setups
+
+13. Monitoring Argo CD with Prometheus
+Enable metrics:
+
+kubectl patch deployment argocd-server -n argocd \
+-p '{"spec":{"template":{"spec":{"containers":[{"name":"argocd-server","args":["--metrics-port=8083"]}]}}}}'
+
+
+Grafana Dashboards:
+Argo CD Application Health
+Sync Status
+Drift Detection
+
+
+14. Security Best Practices
+IAM Roles for Service Accounts (IRSA)
+Restrict Argo CD admin access
+Protect Ingress with AWS WAF
+Enable RBAC in Argo CD
+Use private repositories with SSH keys
+
+
+15. Operational Checklist (Production)
+✔ Git repository backed up
+✔ Argo CD auto-sync enabled
+✔ WAF rules attached
+✔ Alerts configured
+✔ Rollback tested
+✔ Disaster recovery documented
+
+16. Final Outcome
+You now have:
+Fully automated GitOps deployment
+Zero manual kubectl for apps
+Auditable, scalable, secure delivery
+Enterprise-ready EKS platform
