@@ -22,7 +22,7 @@ Route53 hosted zone exists
 
 Now the real flow starts.
 ********************************************************************************************************
-  
+
   
 ********************************************************************************************************
 FLOW DIAGRAM (VERY SIMPLE)
@@ -93,6 +93,121 @@ Templates = logic
 Values = data
 Argo CD = executor
 **********************************************************************************************************
+
+
+*******************************************************************************************************************
+**********************************************************************************************************************
+**********************************************************************************************************************
+***Updated values/frontend-proxy.yaml
+# --------------------------------------------------
+# BASIC APP SETTINGS
+# --------------------------------------------------
+replicaCount: 2
+
+image:
+  repository: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/frontend-proxy
+  tag: v1.0.0
+  pullPolicy: IfNotPresent
+
+# --------------------------------------------------
+# SERVICE (INTERNAL K8s NETWORKING)
+# --------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+
+# --------------------------------------------------
+# INGRESS (PUBLIC ENTRY POINT)
+# --------------------------------------------------
+ingress:
+  enabled: true
+  className: alb
+
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:123456789012:certificate/xxxx-xxxx
+    alb.ingress.kubernetes.io/group.name: ecommerce
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60
+
+  hosts:
+    - host: devopswithsiva.info
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: www.devopswithsiva.info
+      paths:
+        - path: /
+          pathType: Prefix
+
+  tls: []   # TLS is handled by ALB + ACM
+
+# --------------------------------------------------
+# RESOURCES
+# --------------------------------------------------
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# --------------------------------------------------
+# HPA (OPTIONAL)
+# --------------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# --------------------------------------------------
+# ENVIRONMENT VARIABLES
+# --------------------------------------------------
+env:
+  - name: CART_SERVICE_URL
+    value: http://cart:8080
+  - name: CHECKOUT_SERVICE_URL
+    value: http://checkout:8080
+  - name: PRODUCT_CATALOG_SERVICE_URL
+    value: http://product-catalog:8080
+  - name: PAYMENT_SERVICE_URL
+    value: http://payment:8080
+
+# --------------------------------------------------
+# POD SETTINGS
+# --------------------------------------------------
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+#-----------------------------------------------
+🔎 Important notes (quick checks)
+
+ACM certificate
+
+Must include both:
+devopswithsiva.info
+www.devopswithsiva.info
+Issued in ap-south-1 (for ALB).
+
+Route 53
+Create two records:
+devopswithsiva.info → ALB DNS or CloudFront (if used)
+www.devopswithsiva.info → same target (or CNAME to root).
+
+Argo CD
+Commit this file and sync the frontend-proxy application.
+ALB rules will update automatically.
+
+**********************************************************************************************************************
+**********************************************************************************************************************
+**********************************************************************************************************************
 
 
 **********************************************************************************************************
