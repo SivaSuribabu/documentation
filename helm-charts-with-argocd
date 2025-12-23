@@ -1,0 +1,426 @@
+********************************************************************************************************
+Big Picture (one sentence)
+
+Your values file does nothing by itself.
+Argo CD reads it, Helm renders it, Kubernetes applies it, AWS controllers react, and AWS creates infrastructure.
+********************************************************************************************************
+
+********************************************************************************************************
+0️⃣ Prerequisites (already assumed)
+
+These must already exist:
+
+EKS cluster
+
+AWS Load Balancer Controller installed
+
+Argo CD installed
+
+ACM certificate issued
+
+Route53 hosted zone exists
+
+Now the real flow starts.
+********************************************************************************************************
+  
+  
+********************************************************************************************************
+FLOW DIAGRAM (VERY SIMPLE)
+
+YOU (Developer)
+   |
+   | 1. Change image tag in Git
+   v
+GIT REPOSITORY
+   |
+   | 2. Argo CD watches Git
+   v
+ARGO CD
+   |
+   | 3. Argo CD runs Helm
+   v
+HELM
+   |
+   | 4. Helm generates Kubernetes YAML
+   v
+KUBERNETES API
+   |
+   | 5. Pods are created / updated
+   v
+EKS CLUSTER
+   |
+   | 6. Traffic comes via ALB
+   v
+frontend-proxy POD
+
+That is the entire system.
+********************************************************************************************************
+
+  
+********************************************************************************************************
+Traffic flow (very simple)
+Browser
+  |
+  | https://shop.example.com
+  v
+ALB (Ingress)
+  |
+  v
+frontend-proxy Pod
+  |
+  | internal routing
+  v
+cart / product-catalog / checkout services
+********************************************************************************************************
+  
+
+********************************************************************************************************
+IMPORTANT: WHERE EACH FILE FITS (MENTAL MAP)
+Helm Chart
+│
+├── templates/        ← YOU RARELY TOUCH
+│   ├── deployment.yaml  → creates Pods
+│   ├── service.yaml     → internal networking
+│   └── ingress.yaml     → ALB routing
+│
+└── values/
+    ├── values.yaml           → defaults
+    └── frontend-proxy.yaml   → YOU EDIT THIS
+
+Rule to remember
+
+Templates = logic
+Values = data
+Argo CD = executor
+**********************************************************************************************************
+
+
+**********************************************************************************************************
+WHY THIS EXISTS (VERY IMPORTANT)
+
+Imagine 20 microservices.
+
+Without Helm:
+20 deployments
+20 services
+20 ingress files
+100s of YAML lines duplicated
+
+With Helm:
+1 template
+20 small values files
+Less mistakes
+Faster changes
+
+That is why companies use this.
+**********************************************************************************************************
+
+  
+**********************************************************************************************************
+IF YOU REMOVE HELM (JUST TO UNDERSTAND)
+
+Helm is basically doing this:
+COPY deployment.yaml
+REPLACE image name
+REPLACE replicas
+APPLY
+
+That’s it.
+Helm is not magic.
+**********************************************************************************************************
+
+**********************************************************************************************************
+Full routing chain (final mental model)
+User
+ ↓
+Route53 (DNS)
+ ↓
+ALB (Ingress)
+ ↓
+frontend-proxy (Nginx/Envoy)
+ ↓
+Kubernetes Services
+ ↓
+Pods
+**********************************************************************************************************
+
+
+
+*******************************************************************************************************************************
+*******************************************************************************************************************************
+0️⃣ Prerequisites (already assumed)
+
+These must already exist:
+
+EKS cluster
+
+AWS Load Balancer Controller installed
+
+Argo CD installed
+
+ACM certificate issued
+
+Route53 hosted zone exists
+
+Now the real flow starts.
+
+1️⃣ You create values/frontend-proxy.yaml
+image:
+  repository: <ECR>/frontend-proxy
+  tag: v1
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...
+  hosts:
+    - host: shop.example.com
+      paths:
+        - path: /
+
+
+👉 Nothing happens yet
+
+This is only data in Git.
+
+2️⃣ Argo CD notices the change
+
+Argo CD continuously watches Git.
+
+It sees:
+
+New / updated values file
+
+Or Application referencing it
+
+Argo CD now decides:
+
+“I must sync this application.”
+
+3️⃣ Helm renders Kubernetes manifests (CRITICAL STEP)
+
+Argo CD runs Helm internally:
+
+helm template microservice \
+  -f values/frontend-proxy.yaml
+
+
+Helm now generates plain Kubernetes YAML:
+
+Generated resources:
+
+Deployment
+
+Service
+
+Ingress
+
+Helm’s job ENDS here.
+
+4️⃣ Kubernetes creates Pods (Deployment)
+
+From the rendered Deployment YAML:
+
+kind: Deployment
+
+
+Kubernetes:
+
+Creates ReplicaSet
+
+Creates Pods
+
+Pulls image from ECR
+
+Starts containers
+
+✅ Pods are now running
+
+This answers:
+
+how pods will be created
+
+5️⃣ Kubernetes creates Service
+
+From:
+
+kind: Service
+
+
+Kubernetes:
+
+Creates internal DNS:
+
+frontend-proxy.frontend.svc.cluster.local
+
+
+Enables internal networking
+
+No AWS involved yet.
+
+6️⃣ Kubernetes creates Ingress resource
+
+From:
+
+kind: Ingress
+
+
+Kubernetes API now has:
+
+Ingress object
+
+Annotations
+
+Host rules
+
+👉 Still no ALB yet
+
+Ingress is just a Kubernetes object.
+
+7️⃣ AWS Load Balancer Controller reacts
+
+The AWS Load Balancer Controller (running as pods) is constantly watching:
+
+“Did any new Ingress appear with class alb?”
+
+It sees:
+
+kubernetes.io/ingress.class: alb
+
+
+Now it acts.
+
+8️⃣ ALB is CREATED automatically
+
+The controller calls AWS APIs:
+
+Creates ALB
+
+Creates Target Groups
+
+Creates Listeners (80 / 443)
+
+Registers EKS nodes / pods
+
+✅ ALB is now live
+
+This answers:
+
+how the ALB will be created
+
+You did not create ALB manually.
+
+9️⃣ TLS / SSL certificate is attached
+
+From annotation:
+
+alb.ingress.kubernetes.io/certificate-arn
+
+
+The controller:
+
+Attaches ACM certificate to ALB listener (443)
+
+Enables HTTPS
+
+✅ TLS is active
+
+This answers:
+
+how tls/ssl certificates and annotations are applied
+
+🔟 Traffic routing is configured
+
+Ingress rules:
+
+host: shop.example.com
+path: /
+
+
+Controller configures:
+
+Listener rules
+
+Forward traffic → frontend-proxy Service
+
+Flow now works.
+
+1️⃣1️⃣ CloudFront distribution (OPTIONAL but common)
+
+⚠️ CloudFront is NOT automatic
+
+You do one-time manual or Terraform step:
+
+Create CloudFront
+
+Origin = ALB DNS
+
+Attach ACM (us-east-1)
+
+Enable caching / WAF
+
+CloudFront now sits in front.
+
+Flow:
+
+User → CloudFront → ALB → frontend-proxy
+
+1️⃣2️⃣ Route53 domain mapping
+
+Again, not automatic.
+
+You create DNS records:
+
+Example:
+shop.example.com → CloudFront domain
+
+
+OR
+
+shop.example.com → ALB DNS
+
+
+Once DNS propagates:
+
+✅ Site is live globally
+
+COMPLETE FLOW (READ THIS CAREFULLY)
+values/frontend-proxy.yaml
+        ↓
+Argo CD sync
+        ↓
+Helm renders YAML
+        ↓
+Kubernetes creates:
+  - Deployment → Pods
+  - Service
+  - Ingress
+        ↓
+AWS Load Balancer Controller
+        ↓
+ALB + Target Groups
+        ↓
+ACM certificate attached
+        ↓
+(Optional) CloudFront
+        ↓
+Route53 DNS
+        ↓
+User traffic
+
+WHO CREATES WHAT (VERY IMPORTANT TABLE)
+Component	Created by
+Pods	Kubernetes
+Service	Kubernetes
+Ingress	Kubernetes
+ALB	AWS Load Balancer Controller
+TLS	ACM + ALB Controller
+CloudFront	You (once)
+Route53 DNS	You (once)
+********************************************************************************************************************************
+*********************************************************************************************************************************
