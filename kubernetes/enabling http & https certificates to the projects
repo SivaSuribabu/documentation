@@ -237,7 +237,6 @@ You MUST see:
 Protocol	Port	Action
 HTTP	80	Redirect → HTTPS:443
 HTTPS	443	Forward → target group
-If HTTPS is missing → STOP and tell me.
 
 
 10. Verify from CLI
