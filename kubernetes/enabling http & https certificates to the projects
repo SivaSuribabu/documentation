@@ -155,6 +155,8 @@ aws acm describe-certificate \
   --certificate-arn arn:aws:acm:us-east-1:644209053375:certificate/f0d22358-bade-4639-9bb0-68e4206e61d3 \
   --query "Certificate.Status"
 
+aws acm describe-certificate --certificate-arn <arn>
+
 Expected:
 "ISSUED"
 
