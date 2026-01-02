@@ -6,6 +6,10 @@
 2.Add HTTP → HTTPS redirect
 3.Configure root domain (devopswithsiva.info) along with www
 
+
+check the issuence status
+aws acm list-certificates
+
 OVERVIEW (What We Will Do)
 
 Target architecture:
@@ -59,6 +63,8 @@ Add them manually
 Wait until:
 Status: Issued
 
+check the issuence status
+aws acm list-certificates
 
 STEP 2: Update Ingress for HTTPS + Redirect
 Now we update your Ingress YAML.
