@@ -1,6 +1,9 @@
 1. First Fix Your curl --resolve Test (You Used Wrong Syntax)
 curl --resolve www.devopswithsiva.info:80:100.28.5.47 http://www.devopswithsiva.info
 
+kubectl describe ingress frontend-proxy -n application
+
+
 2. Check ALB Listener Rules (MOST COMMON ISSUE)
 In AWS Console → EC2 → Load Balancers → Your ALB
 
