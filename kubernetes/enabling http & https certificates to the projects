@@ -9,6 +9,7 @@
 
 check the issuence status
 aws acm list-certificates
+aws acm describe-certificate --certificate-arn <arn>
 
 OVERVIEW (What We Will Do)
 
