@@ -55,6 +55,7 @@ Allowed HTTP methods	GET, HEAD, OPTIONS
 Cache policy	Managed-CachingOptimized
 Origin request policy	Managed-AllViewer
 Compress objects	Yes
+
 2.4 Distribution Settings
 Field	Value
 Alternate domain names (CNAMEs)	devopswithsiva.info, www.devopswithsiva.info
