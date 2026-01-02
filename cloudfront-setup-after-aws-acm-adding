@@ -127,3 +127,44 @@ Lower latency	✅
 DDoS protection	✅
 One-Line Summary
 CloudFront is now the public entry point, serving HTTPS globally and forwarding traffic securely to your ALB-backed EKS Ingress.
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+STEP 1: Final Validation (After Deployment)
+curl -I https://www.devopswithsiva.info
+Expected:
+HTTP/2 200
+server: CloudFront
+
+curl -I http://www.devopswithsiva.info
+Expected:
+HTTP/1.1 301 Moved Permanently
+Location: https://www.devopswithsiva.info/
+
+
+STEP 2: Verify the CloudFront Certificate (MANDATORY)
+Run this and read the SAN list carefully:
+aws acm describe-certificate \
+  --region us-east-1 \
+  --certificate-arn <cloudfront-certificate-arn>
+
+You MUST see:
+"SubjectAlternativeNames": [
+  "devopswithsiva.info",
+  "www.devopswithsiva.info"
+]
+
+
+Step 3: Verify the ACM certificate (us-east-1)
+aws acm describe-certificate \
+  --region us-east-1 \
+  --certificate-arn <cloudfront-cert-arn>
+
+Check:
+"SubjectAlternativeNames": [
+  "devopswithsiva.info",
+  "www.devopswithsiva.info"
+]
