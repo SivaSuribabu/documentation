@@ -51,8 +51,7 @@
 * Add helm repo (helm repo add eks https://aws.github.io/eks-charts)
 * Update the repo (helm repo update eks)
 * Install
-    khelm install aws-load-balancer-controller eks/aws-load-balancer-controller \            
-  -n kube-system \
+    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system \
   --set clusterName=<your-cluster-name> \
   --set serviceAccount.create=false \
   --set serviceAccount.name=aws-load-balancer-controller \
@@ -172,7 +171,26 @@ eksctl create iamserviceaccount \
 . But the IAM policy attached is older or custom
 . Newer controller versions require additional ELBv2 permissions
 
+issue : loadbalancer address is not visible after creating the alb
+command : kubectl describe ingress frontend-proxy -n application
 
+ ✅ Step 1: Use the OFFICIAL AWS policy (recommended)
+Download the latest policy:
+curl -o iam_policy.json \
+https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+
+✅ Step 2: Update IAM policy attached to the role
+aws iam put-role-policy \
+  --role-name AmazonEKSLoadBalancerControllerRole \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json
+
+✅ Step 3: Restart the controller
+kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
+
+✅ Step 4: Reconcile Ingress
+kubectl delete ingress frontend-proxy -n application
+kubectl apply -f ingress.yaml -n application
 
 
 ** Step 1: Download the Official IAM Policy (Latest)
