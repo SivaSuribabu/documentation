@@ -21,3 +21,4 @@
 11. git rm -f .git/index.lock
 12. sudo chown -R siva-devops:siva-devops .
 13. ls -ld .git               "Owner should be siva-devops, not root."
+git rebase -i --root
