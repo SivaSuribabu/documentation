@@ -7,6 +7,8 @@ Basic configuration (default profile)
 aws configure
 Configure a named profile (recommended)
 aws configure --profile dev
+aws configure set region us-east-1
+
 
 3.View Configured AWS Credentials
 List all profiles
