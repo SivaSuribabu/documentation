@@ -1,0 +1,207 @@
+##############################################################################################################################################################################################################
+*********************************************************************************************AWS-PROFILES-COMMANDS********************************************************************************************
+
+1. Where AWS Credentials Are Stored (Linux) : AWS credentials are stored per user in the home directory: ~/.aws/
+
+2. Configure AWS Credentials 
+  Basic configuration (default profile) : aws configure 
+  Configure a named profile (recommended) :  aws configure --profile dev
+  aws configure set region us-east-1
+
+3.View Configured AWS Credentials
+  List all profiles : aws configure list-profiles
+
+4.View credentials file (safe to view, do not share):  cat ~/.aws/credentials
+
+5.Check Which Profile Is Being Used: echo $AWS_PROFILE
+
+6.Run a test command with a specific profile: aws sts get-caller-identity --profile dev
+
+7. Delete AWS Credentials: Delete a specific profile (recommended)
+  Edit credentials file: nano ~/.aws/credentials
+  
+8.Delete all AWS credentials (complete cleanup): rm -rf ~/.aws
+
+9.Unset AWS Environment Variables (Immediate Fix)
+  Run in the current terminal:
+  unset AWS_PROFILE
+  unset AWS_ACCESS_KEY_ID
+  unset AWS_SECRET_ACCESS_KEY
+  unset AWS_SESSION_TOKEN
+  Verify:
+  echo $AWS_PROFILE
+  Expected output:
+  (empty)
+
+10.See the region configured for each profile: aws configure get region --profile account1 
+
+11.If you want to see all details of a profile (region, credentials file, config sources): aws configure list --profile account1
+    Export AWS_PROFILE before running Terraform
+    export AWS_PROFILE=account1
+    terraform init
+    terraform plan
+    terraform apply
+
+12. List all configured profiles: aws configure list-profiles
+
+13.View credentials file: cat ~/.aws/credentials
+
+14.Delete a Profile (Credentials & Config): nano ~/.aws/credentials
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************DOCKERFILE-JAVA-MAVEN********************************************************************************************
+
+# syntax=docker/dockerfile:1
+########################
+# 1) Build stage
+########################
+FROM maven:3.9-eclipse-temurin-21 AS build
+# Set working directory
+WORKDIR /app
+# Copy only pom.xml first (to leverage Docker cache for dependencies)
+COPY pom.xml .
+# Download dependencies (helps with caching)
+RUN mvn -B dependency:go-offline
+# Now copy the source code
+COPY src ./src
+# Package the application (skip tests for faster build)
+RUN mvn -B clean package -DskipTests
+
+########################
+# 2) Runtime stage
+########################
+FROM eclipse-temurin:21-jre-alpine
+# Set working directory
+WORKDIR /app
+# Create non-root user for security
+RUN addgroup -S app && adduser -S app -G app
+# Copy the fat JAR from the build stage
+# Adjust the jar name pattern if needed
+COPY --from=build /app/target/*.jar app.jar
+# Expose the port your app runs on (Spring Boot default is 8080)
+EXPOSE 8080
+# Run as non-root user
+USER app
+# Start the app
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************DEDICATED PORTS ********************************************************************************************
+
+System Ports :
+ssh  :22
+http  : 80
+https  : 443
+dns  : 53
+
+DevOps : 
+Jenkins  :8080
+sonarqube  : 9000
+nginx  : 80
+grafana  : 3000
+prometheus  : 9090
+alrt manager  : 9093
+
+DataBases: 
+mysql/mariadb  : 3306
+postgress  : 5432
+mongodb  : 27017
+Redis  : 2379
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+********************************************************************************Programming langs & its Dependencies names************************************************************************************
+
+Python : requirements.txt
+Java : pom.xml
+Nodejs : package.json
+Go lang : go.mod
+php : composer.json
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*****************************************************************************************************ANSIBLE**************************************************************************************************
+
+# how to install ansible in ec2
+-- sudo apt update
+-- sudo apt upgrade -y
+-- sudo apt install -y software-properties-common
+-- sudo add-apt-repository --yes --update ppa:ansible/ansible
+-- sudo apt install ansible -y
+-- ansible --version
+
+# how to create ssh keys
+-- ssh-keygen -t rsa
+
+# how to copy ssh keys to target ec2
+-- ssh-copy-id ubuntu@1.1.1.1
+-- we can manually copy to the target ec2
+
+# where the ansible files are located
+-- /etc/ansible/hosts
+-- sudo nanoo hosts
+-- [webservers]
+  -- 1.1.1.1
+  -- 2.2.2.2
+-- [dbservers]
+  -- 3.3.3.3
+  -- 4.4.4.4
+
+# how to ping all servers at a time:
+-- ansible all -m ping 
+-- ansbile -m ping webservers
+-- ansible -m ping dbservers
+
+# how to copy a file into target servers: ansible all -m copy -a "src=/home/ubuntu/test.txt dest=/home/ubuntu/test.txt" --become
+# how to run ansible playbook: absible-playbook http.yaml
+# how to run ansible playbook in particular servers: ansible-playbook java.yml --limit webservers
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************SONAR-SERVER-SETUP********************************************************************************************
+
+#System Requirements
+#Java 17+ (Oracle JDK, OpenJDK, or AdoptOpenJDK)
+#Hardware Recommendations:
+#Minimum 2 GB RAM
+#2 CPU cores
+
+sudo apt update && sudo apt install unzip -y
+adduser sonarqube
+wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-10.4.1.88267.zip
+unzip *
+chown -R sonarqube:sonarqube /opt/sonarqube
+chmod -R 775 /opt/sonarqube
+cd /opt/sonarqube/bin/linux-x86-64
+./sonar.sh start
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************DOCKERFILE-JAVA-MAVEN********************************************************************************************
+
+
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************DOCKERFILE-JAVA-MAVEN********************************************************************************************
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************DOCKERFILE-JAVA-MAVEN********************************************************************************************
+
+##############################################################################################################################################################################################################
+
+##############################################################################################################################################################################################################
+*********************************************************************************************DOCKERFILE-JAVA-MAVEN********************************************************************************************
+
+##############################################################################################################################################################################################################
