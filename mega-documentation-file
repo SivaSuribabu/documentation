@@ -186,317 +186,169 @@ cd /opt/sonarqube/bin/linux-x86-64
 
 ##############################################################################################################################################################################################################
 *********************************************************************************************ELASTIC BEANSTALK TOMCAT APACHE********************************************************************************************
+
 1️⃣ Does Elastic Beanstalk support AWS Fargate?
 ✅ Short answer: NO (natively)
 
-Elastic Beanstalk does NOT directly support Fargate.
+1. Elastic Beanstalk does NOT directly support Fargate.
+  Why?
+  Elastic Beanstalk manages EC2 instances for:Java (Tomcat), Java SE, Python, Node.js
+  Fargate is serverless compute for containers, used with: ECS,EKS
 
-Why?
 
-Elastic Beanstalk manages EC2 instances for:
-
-Java (Tomcat)
-
-Java SE
-
-Python
-
-Node.js
-
-Fargate is serverless compute for containers, used with:
-
-ECS
-
-EKS
-
-What Beanstalk DOES support
-Platform	Compute
-Java (Tomcat)	EC2
-Docker (single container)	EC2
-Docker (multi-container)	EC2 (ECS on EC2)
-
-📌 If you want Fargate
-
-Use ECS + Fargate
-
-Or EKS + Fargate
-
-Not Elastic Beanstalk
+2. What Beanstalk DOES support..?
+  Platform	Compute
+  Java (Tomcat)	EC2
+  Docker (single container)	EC2
+  Docker (multi-container)	EC2 (ECS on EC2)
+  📌 If you want Fargate: Use ECS + Fargate Or EKS + Fargate , Not Elastic Beanstalk
 
 2️⃣ If platform is Tomcat + EC2, what does Tomcat do?
-Architecture flow
-User
- ↓
-ALB (created by Beanstalk)
- ↓
-EC2 Instance
- ↓
-Tomcat
- ↓
-Java Application (WAR)
+  Architecture flow
+  User
+   ↓
+  ALB (created by Beanstalk)
+   ↓
+  EC2 Instance
+   ↓
+  Tomcat
+   ↓
+  Java Application (WAR)
 
-What Tomcat actually does
-
-Acts as:
-
-Java application server
-
-Servlet container
-
-Responsibilities:
-
-Starts JVM
-
-Loads your .war file
-
-Maps HTTP requests to servlets/controllers
-
-Manages threads, sessions, and ports
-
-📌 Tomcat listens on:
-
-Port 8080 (internally)
-
-
+3.What Tomcat actually does
+  Acts as:
+          Java application server
+          Servlet container
+ Responsibilities:
+          Starts JVM
+ Loads your .war file
+ Maps HTTP requests to servlets/controllers Manages threads, sessions, and ports
+ 📌 Tomcat listens on: Port 8080 (internally)
 ALB forwards traffic → EC2 → Tomcat
 
 3️⃣ How is the application deployed inside Tomcat?
-During Beanstalk deployment:
-
-You upload:
-
-.war file (Java web app)
-
-Beanstalk:
-
-Copies WAR to EC2
-
-Deploys it into Tomcat automatically
-
-Deployment location (IMPORTANT)
-/var/app/current/
-
-
-Tomcat deployment directory:
-
-/usr/share/tomcat/webapps/
-
-
-Example:
-
-/usr/share/tomcat/webapps/ROOT.war
-
-
-OR
-
-/usr/share/tomcat/webapps/myapp/
-
-If app name is sample.war
-
-Access URL:
-
-http://ALB-DNS/sample
-
-
-If deployed as ROOT:
-
-http://ALB-DNS/
+                                                    During Beanstalk deployment:
+                                                    You upload: .war file (Java web app)
+                                                    Beanstalk: Copies WAR to EC2 Deploys it into Tomcat automatically
+                                                    
+                                                    Deployment location (IMPORTANT) : /var/app/current/
+                                                    Tomcat deployment directory: /usr/share/tomcat/webapps/
+                                                    Example: /usr/share/tomcat/webapps/ROOT.war
+                                                    OR
+                                                    /usr/share/tomcat/webapps/myapp/
+                                                    
+                                                    If app name is sample.war
+                                                    Access URL: http://ALB-DNS/sample
+                                                    If deployed as ROOT: http://ALB-DNS/
 
 4️⃣ How to access the EC2 / Tomcat using MobaXterm
-Step 1: Get EC2 instance
-AWS Console → Elastic Beanstalk → Environment → EC2 Instances
-
-Step 2: SSH using MobaXterm
-
-Username:
-
-ec2-user
-
-
-Key:
-
-.pem file used in Beanstalk environment
-
-Step 3: Connect
-ssh -i mykey.pem ec2-user@<EC2-PUBLIC-IP>
+                                                    Step 1: Get EC2 instance: AWS Console → Elastic Beanstalk → Environment → EC2 Instances
+                                                    Step 2: SSH using MobaXterm
+                                                            Username: ec2-user
+                                                            Key: .pem file used in Beanstalk environment
+                                                    Step 3: Connect
+                                                            ssh -i mykey.pem ec2-user@<EC2-PUBLIC-IP>
+                                                    Step 4:
+                                                            Switch to root (if required)
+                                                            sudo -i
 
 5️⃣ Where are Tomcat & Application logs stored?
-🔹 Tomcat Logs
-/var/log/tomcat/
+                                                🔹 Tomcat Logs: /var/log/tomcat/
+                                                    Important files: catalina.out, catalina.log, localhost.log
+                                                
+                                                🔹 Application Logs (Elastic Beanstalk) :
+                                                    /var/log/web.stdout.log
+                                                    /var/log/web.stderr.log
+                                                
+                                                🔹 Elastic Beanstalk Engine Logs
+                                                    /var/log/eb-engine.log
+                                                    /var/log/eb-activity.log
 
-
-Important files:
-
-catalina.out
-catalina.log
-localhost.log
-
-🔹 Application Logs (Elastic Beanstalk)
-/var/log/web.stdout.log
-/var/log/web.stderr.log
-
-🔹 Elastic Beanstalk Engine Logs
-/var/log/eb-engine.log
-/var/log/eb-activity.log
+                                                 🔹   Check deployed application: ls -l /var/app/current
 
 6️⃣ 🔧 20 Popular Tomcat & Application Troubleshooting Commands
-🔹 System & Process
-ps -ef | grep tomcat
-top
-htop
-free -m
-df -h
-uptime
+                                                                  🔹 System & Process:
+                                                                                        1. ps -ef | grep tomcat
+                                                                                        2. top
+                                                                                        3. htop
+                                                                                        4. free -m
+                                                                                        5. df -h
+                                                                                        6. uptime
+                                                                  
+                                                                  🔹 Tomcat Service:
+                                                                                        7. sudo systemctl status tomcat
+                                                                                        8. sudo systemctl restart tomcat
+                                                                                        9. sudo systemctl stop tomcat
+                                                                                        10. sudo systemctl start tomcat
+                                                                  
+                                                                  🔹 Logs (MOST IMPORTANT):
+                                                                                        11. tail -f /var/log/tomcat/catalina.out
+                                                                                        12. tail -n 100 /var/log/tomcat/catalina.out
+                                                                                        13. grep ERROR /var/log/tomcat/catalina.out
+                                                                                        14. grep Exception /var/log/tomcat/catalina.out
+                                                                                        15. less /var/log/web.stderr.log
+                                                                                        17. less /var/log/web.stdout.log
 
-🔹 Tomcat Service
-sudo systemctl status tomcat
-sudo systemctl restart tomcat
-sudo systemctl stop tomcat
-sudo systemctl start tomcat
-
-🔹 Logs (MOST IMPORTANT)
-tail -f /var/log/tomcat/catalina.out
-tail -n 100 /var/log/tomcat/catalina.out
-grep ERROR /var/log/tomcat/catalina.out
-grep Exception /var/log/tomcat/catalina.out
-less /var/log/web.stderr.log
-less /var/log/web.stdout.log
-
-🔹 Port & Network
-netstat -tulnp | grep 8080
-ss -tulnp | grep 8080
-curl localhost:8080
-curl -I localhost:8080
-
-🔹 Disk & Permissions
-ls -ld /usr/share/tomcat/webapps
-ls -ld /var/app/current
-sudo chown -R tomcat:tomcat /usr/share/tomcat
-sudo chmod -R 755 /usr/share/tomcat
-
-🔹 Environment & Java
-java -version
-echo $JAVA_HOME
-env | grep JAVA
+                                                                    🔹 Port & Network
+                                                                                          18. netstat -tulnp | grep 8080
+                                                                                          19. ss -tulnp | grep 8080
+                                                                                          20. curl localhost:8080
+                                                                                          21. curl -I localhost:8080
+                                                                    
+                                                                    🔹 Disk & Permissions
+                                                                                            22. ls -ld /usr/share/tomcat/webapps
+                                                                                            23. ls -ld /var/app/current
+                                                                                            24. sudo chown -R tomcat:tomcat /usr/share/tomcat
+                                                                                            25. sudo chmod -R 755 /usr/share/tomcat
+                                                                    
+                                                                    🔹 Environment & Java:
+                                                                                            java -version
+                                                                                            echo $JAVA_HOME
+                                                                                            env | grep JAVA
 
 7️⃣ Common Real-World Issues & Causes
-Issue	Root Cause
-502 Bad Gateway	Tomcat not running
-App not loading	WAR not deployed
-Port 8080 closed	Security group / Tomcat down
-OutOfMemoryError	Low heap size
-App works locally but fails	Wrong ENV variables
-
-SERVER LOGIN (MobaXterm / SSH)
-
-Login to EC2
-
-ssh -i mykey.pem ec2-user@<EC2_PUBLIC_IP>
-
-
-Switch to root (if required)
-
-sudo -i
+                                          Issue	Root Cause
+                                          502 Bad Gateway	Tomcat not running
+                                          App not loading	WAR not deployed
+                                          Port 8080 closed	Security group / Tomcat down
+                                          OutOfMemoryError	Low heap size
+                                          App works locally but fails	Wrong ENV variables
 
 ⚙️ TOMCAT SERVICE MANAGEMENT
 
-Check Tomcat status
-
-sudo systemctl status tomcat
-
-
-Start Tomcat
-
-sudo systemctl start tomcat
-
-
-Stop Tomcat
-
-sudo systemctl stop tomcat
-
-
-Restart Tomcat
-
-sudo systemctl restart tomcat
-
-
-Check if Tomcat process is running
-
-ps -ef | grep tomcat
+                              Check Tomcat status:                 sudo systemctl status tomcat
+                              Start Tomcat:                        sudo systemctl start tomcat
+                              Stop Tomcat:                         sudo systemctl stop tomcat
+                              Restart Tomcat:                      sudo systemctl restart tomcat
+                              Check if Tomcat process is running:  ps -ef | grep tomcat
 
 📄 TOMCAT & APPLICATION LOGS (MOST IMPORTANT)
+                                                Live Tomcat log :                  tail -f /var/log/tomcat/catalina.out
+                                                Last 100 log lines:                tail -n 100 /var/log/tomcat/catalina.out
+                                                Search errors :                    grep ERROR /var/log/tomcat/catalina.out
+                                                Search exceptions:                 grep Exception /var/log/tomcat/catalina.out
+                                                Application stdout log (Beanstalk): less /var/log/web.stdout.log
+                                                Application stderr log            :   less /var/log/web.stderr.log
+                                                 Check deployed application: ls -l /var/app/current
 
-Live Tomcat log
-
-tail -f /var/log/tomcat/catalina.out
-
-
-Last 100 log lines
-
-tail -n 100 /var/log/tomcat/catalina.out
-
-
-Search errors
-
-grep ERROR /var/log/tomcat/catalina.out
-
-
-Search exceptions
-
-grep Exception /var/log/tomcat/catalina.out
-
-
-Application stdout log (Beanstalk)
-
-less /var/log/web.stdout.log
-
-
-Application stderr log
-
-less /var/log/web.stderr.log
+                                                  
+                                                
 
 🌐 PORT & NETWORK TROUBLESHOOTING
-
-Check Tomcat port (8080)
-
-netstat -tulnp | grep 8080
-
-
-(or)
-
-ss -tulnp | grep 8080
-
-
-Test Tomcat locally
-
-curl localhost:8080
+                                        Check Tomcat port (8080)
+                                        netstat -tulnp | grep 8080
+                                        (or)
+                                        ss -tulnp | grep 8080
+                                        Test Tomcat locally: curl localhost:8080
 
 📦 APPLICATION & DEPLOYMENT CHECKS
-
-Check deployed application
-
-ls -l /var/app/current
+                                  Check deployed application: ls -l /var/app/current
 
 
 Check Tomcat webapps directory
 
 ls -l /usr/share/tomcat/webapps
 
-💾 SYSTEM RESOURCE TROUBLESHOOTING
-
-Check memory usage
-
-free -m
-
-
-Check disk usage
-
-df -h
-
-
-Check CPU usage
-
-top
 ##############################################################################################################################################################################################################
 
 ##############################################################################################################################################################################################################
