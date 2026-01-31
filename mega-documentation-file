@@ -349,6 +349,116 @@ Check Tomcat webapps directory
 
 ls -l /usr/share/tomcat/webapps
 
+
+TOMCAT INSTALLAION AND DEPLOYING THE APPLICATION: 
+1️⃣ Update package index
+sudo apt update
+2️⃣ Install Tomcat 10 & troubleshooting :
+sudo apt install -y tomcat10 tomcat10-admin 
+                                                for tomcat9 installations: sudo wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.85/bin/apache-tomcat-9.0.85.tar.gz
+                                                ✅ Then continue installation (same as before)
+                                                Extract
+                                                sudo tar -xzf apache-tomcat-9.0.85.tar.gz
+                                                sudo mv apache-tomcat-9.0.85 tomcat9
+                                                
+                                                Permissions
+                                                sudo chown -R $USER:$USER /opt/tomcat9
+                                                sudo chmod +x /opt/tomcat9/bin/*.sh
+                                                
+                                                Start Tomcat
+                                                /opt/tomcat9/bin/startup.sh
+                                                
+                                                Verify
+                                                curl http://localhost:8080
+
+
+                                                    ✅ POST-CREATION VERIFICATION (DO NOT SKIP)
+                                                    1️⃣ Check Health
+                                                    
+                                                    Elastic Beanstalk → Environment:
+                                                    
+                                                    Health: Green
+                                                    
+                                                    2️⃣ Check Target Group
+                                                    
+                                                    EC2 → Target Groups → Targets:
+                                                    
+                                                    Instance | Port 8080 | Healthy
+                                                    
+                                                    3️⃣ Check Security Groups
+                                                    ALB Security Group
+                                                    
+                                                    Inbound:
+                                                    
+                                                    HTTP | 80 | 0.0.0.0/0
+                                                    
+                                                    EC2 Instance Security Group
+                                                    
+                                                    Inbound:
+                                                    
+                                                    Custom TCP | 8080 | <ALB Security Group>
+                                                    SSH | 22 | Your IP
+                                                    
+                                                    4️⃣ Access application
+                                                    
+                                                    Open browser:
+                                                    
+                                                    http://<elastic-beanstalk-domain>/green
+
+                                                      Test from EC2 using ALB private IP (critical isolation test)
+                                                      
+                                                      On EC2:
+                                                      
+                                                      curl http://<ALB-private-IP>/green
+                                                      
+                                                      
+                                                      If this fails → security group is wrong
+                                                      If this works → DNS / listener issue
+                                                      
+                                                      (To get ALB private IP: EC2 → Load Balancers → Description)
+
+                                                    
+                                                    
+                                                    Expected output:
+                                                    
+                                                    Hello, I am Green Environment
+                                                    
+                                                    🔴 IF IT STILL DOES NOT WORK (RARE)
+                                                    
+                                                    Do ONLY these 3 checks:
+                                                    
+                                                    EB → Configuration → Load balancer → Processes
+                                                    
+                                                    Confirm port = 8080
+                                                    
+                                                    EC2 → Security Groups
+                                                    
+                                                    Confirm ALB SG → EC2 SG → 8080
+                                                    
+                                                    EB → Logs → Last 100 lines
+                                                    
+                                                    Check catalina.out
+                                                    
+                                                    🧠 PRODUCTION MENTAL MODEL (MEMORIZE)
+                                                    Component	Value
+                                                    Artifact	ROOT.war
+                                                    Platform	Tomcat
+                                                    ALB → EC2 port	8080
+                                                    Health check	/green
+                                                    Servlet URL	/green
+                                                    Root context	/
+
+
+3️⃣ Verify Tomcat
+systemctl status tomcat10
+Active: active (running)
+4️⃣ Deploy your WAR
+sudo cp target/green-app.war /var/lib/tomcat10/webapps/
+sudo systemctl restart tomcat10
+5️⃣ Access app
+http://localhost:8080/green-app/green
+
+
 ##############################################################################################################################################################################################################
 
 ##############################################################################################################################################################################################################
